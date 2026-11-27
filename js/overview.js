@@ -27,6 +27,7 @@ export function initOverview(ctx) {
     .attr('fill', 'none').attr('pointer-events', 'all');
   // Kacheln, Vorschaubilder und Rahmen sind keine Touch-Ziele: sie werden beim Zoomen/Drehen
   // ausgetauscht, und ein entferntes Ziel "verschluckt" die Fingerbewegung. Antippen läuft über Koordinaten.
+  const gTilesOld = gRot.append('g').attr('pointer-events', 'none');   // vorige Zoomstufe, bis die neue geladen ist
   const gTiles = gRot.append('g').attr('pointer-events', 'none');
   const gThumbs = gRot.append('g').attr('pointer-events', 'none');
   const gFoot = gRot.append('g').attr('pointer-events', 'none');
@@ -155,8 +156,21 @@ export function initOverview(ctx) {
     (animate ? gRot.transition().duration(500) : gRot).call(zoom.transform, t);
   }
 
+  // Kacheln: beim Zoomstufen-Wechsel bleibt die alte Stufe darunter stehen, bis die neue geladen ist
+  let tileZ = null, curTiles = [], oldTiles = [], oldTimer = 0;
+  const tileLoaded = new Set();
+  function tilePos(sel) {
+    sel.attr('x', (d) => zt.applyX(d.x * (TILE / 2 ** d.z)) - 0.25)
+      .attr('y', (d) => zt.applyY(d.y * (TILE / 2 ** d.z)) - 0.25)
+      .attr('width', (d) => (TILE * zt.k) / 2 ** d.z + 0.5)
+      .attr('height', (d) => (TILE * zt.k) / 2 ** d.z + 0.5);
+  }
+  const tileUrl = (d) => { const n = 2 ** d.z; return `https://tile.openstreetmap.org/${d.z}/${((d.x % n) + n) % n}/${d.y}.png`; };
+  function dropOld() { oldTiles = []; clearTimeout(oldTimer); gTilesOld.selectAll('image').remove(); }
+  function checkAllLoaded() { if (oldTiles.length && curTiles.every((d) => tileLoaded.has(d.key))) dropOld(); }
+
   function renderTiles() {
-    if (!useTiles()) { gTiles.selectAll('image').remove(); return; }
+    if (!useTiles()) { gTiles.selectAll('image').remove(); dropOld(); return; }
     const { width: W, height: H } = size();
     const z = Math.max(0, Math.min(19, Math.round(Math.log2(zt.k))));
     const n = 2 ** z, ts = TILE / n;
@@ -169,15 +183,25 @@ export function initOverview(ctx) {
         tiles.push({ x, y, z, key: `${z}/${x}/${y}` });
       }
     }
-    const px = (TILE * zt.k) / n;
+    if (tileZ !== null && z !== tileZ) {
+      // geladene Kacheln der bisherigen Stufe als Unterlage behalten
+      const keep = curTiles.filter((d) => tileLoaded.has(d.key));
+      if (keep.length) oldTiles = keep;
+      clearTimeout(oldTimer);
+      oldTimer = setTimeout(() => { dropOld(); }, 3000);   // spätestens dann weg
+    }
+    tileZ = z;
+    curTiles = tiles;
+    gTilesOld.selectAll('image').data(oldTiles, (d) => d.key)
+      .join((e) => e.append('image').attr('href', tileUrl)).call(tilePos);
     gTiles.selectAll('image').data(tiles, (d) => d.key).join(
       (e) => e.append('image')
-        .attr('href', (d) => `https://tile.openstreetmap.org/${d.z}/${((d.x % n) + n) % n}/${d.y}.png`)
-        .on('error', function () { d3.select(this).remove(); })
-    )
-      .attr('x', (d) => zt.applyX(d.x * ts) - 0.25)
-      .attr('y', (d) => zt.applyY(d.y * ts) - 0.25)
-      .attr('width', px + 0.5).attr('height', px + 0.5);
+        .attr('href', tileUrl)
+        .on('load', (ev, d) => { tileLoaded.add(d.key); checkAllLoaded(); })
+        .on('error', function (ev, d) { tileLoaded.add(d.key); d3.select(this).remove(); checkAllLoaded(); })
+    ).call(tilePos);
+    if (tileLoaded.size > 4000) tileLoaded.clear();   // Speicher begrenzen
+    checkAllLoaded();
   }
 
   function renderThumbs(visible) {

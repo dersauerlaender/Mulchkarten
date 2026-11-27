@@ -6,7 +6,7 @@ import { initOverview } from './overview.js';
 import { oneFingerZoom, twoFinger } from './gestures.js';
 import { getBearing, setBearing, onBearing, rotPt, clientToLocal, animateBearing, updateCompass } from './rotation.js';
 
-export const APP_VERSION = '1.9.2';
+export const APP_VERSION = '1.10.0';
 const d3 = window.d3;
 const $ = (s) => document.querySelector(s);
 const KINDS = ['erledigt', 'offen', 'hinweis'];

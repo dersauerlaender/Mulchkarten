@@ -1,5 +1,5 @@
 // Service Worker: Offline-Cache + Empfang geteilter Dateien (Android "Teilen → Mulchkarten")
-const VERSION = 'mk-1.9.2';
+const VERSION = 'mk-1.10.0';
 const ASSETS = [
   './',
   './index.html',
@@ -29,9 +29,45 @@ self.addEventListener('install', (e) => {
     .then(() => self.skipWaiting()));
 });
 
+// ---- OpenStreetMap-Kacheln zwischenspeichern (angesehene Gegenden auch offline) ----
+const TILE_CACHE = 'osm-tiles';
+const TILE_MAX = 3000;                    // ca. 40–60 MB
+const TILE_MAX_AGE = 30 * 864e5;          // nach 30 Tagen im Hintergrund erneuern
+let tilePuts = 0;
+
+async function trimTiles(cache) {
+  const keys = await cache.keys();        // Einfügereihenfolge = älteste zuerst
+  for (let i = 0; i < keys.length - TILE_MAX + 200 && keys.length > TILE_MAX; i++) await cache.delete(keys[i]);
+}
+
+async function fetchTile(url, cache) {
+  // als CORS-Anfrage, damit die Antwort nicht "undurchsichtig" ist (sonst rechnet Chrome sie riesig an)
+  const res = await fetch(url, { mode: 'cors', credentials: 'omit' });
+  if (res.ok) {
+    await cache.put(url, res.clone());
+    if (++tilePuts % 100 === 0) trimTiles(cache);
+  }
+  return res;
+}
+
+async function tileResponse(req) {
+  const cache = await caches.open(TILE_CACHE);
+  const hit = await cache.match(req.url);
+  if (hit) {
+    const age = Date.now() - new Date(hit.headers.get('date') || 0).getTime();
+    if (age > TILE_MAX_AGE) fetchTile(req.url, cache).catch(() => {});   // im Hintergrund erneuern
+    return hit;
+  }
+  try {
+    return await fetchTile(req.url, cache);
+  } catch {
+    try { return await fetch(req); } catch { return new Response('', { status: 504 }); }
+  }
+}
+
 self.addEventListener('activate', (e) => {
   e.waitUntil((async () => {
-    for (const k of await caches.keys()) if (k !== VERSION && k !== 'share-inbox') await caches.delete(k);
+    for (const k of await caches.keys()) if (k !== VERSION && k !== 'share-inbox' && k !== TILE_CACHE) await caches.delete(k);
     await self.clients.claim();
   })());
 });
@@ -52,6 +88,10 @@ self.addEventListener('fetch', (e) => {
       }
       return Response.redirect(new URL('./?share=1', self.registration.scope).href, 303);
     })());
+    return;
+  }
+  if (e.request.method === 'GET' && url.hostname === 'tile.openstreetmap.org') {
+    e.respondWith(tileResponse(e.request));
     return;
   }
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
