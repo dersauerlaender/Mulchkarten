@@ -103,17 +103,19 @@ export function twoFinger(svgNode, zsel, zoom, opts) {
   const ROT_START = 12;
   let g = null, blockRest = false;
   const pt = (t) => { const r = svgNode.getBoundingClientRect(); return [t.clientX - r.left, t.clientY - r.top]; };
+  const byId = (list, id) => { for (let i = 0; i < list.length; i++) if (list[i].identifier === id) return list[i]; return null; };
   const center = () => { const r = svgNode.getBoundingClientRect(); return [r.width / 2, r.height / 2]; };
 
   svgNode.addEventListener('touchstart', (e) => {
     if (e.touches.length < 2) return;
     e.stopPropagation();
     if (g) return;
+    const ids = [e.touches[0].identifier, e.touches[1].identifier];
     const a = pt(e.touches[0]), b = pt(e.touches[1]);
     const c0 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
     const r0 = opts.getR(), t0 = d3.zoomTransform(zsel.node()), C = center();
     g = {
-      c0, d0: Math.hypot(b[0] - a[0], b[1] - a[1]) || 1,
+      ids, c0, d0: Math.hypot(b[0] - a[0], b[1] - a[1]) || 1,
       a0: Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI,
       r0, t0, C, rotating: false, off: 0,
       P: t0.invert(rotPt(c0, -r0, C)),   // Kartenpunkt unter der Fingermitte
@@ -126,7 +128,10 @@ export function twoFinger(svgNode, zsel, zoom, opts) {
     e.stopPropagation();
     if (e.cancelable) e.preventDefault();
     if (!g || e.touches.length < 2) return;
-    const a = pt(e.touches[0]), b = pt(e.touches[1]);
+    // Finger über ihre Kennung zuordnen – die Reihenfolge in e.touches ist nicht verlässlich
+    const ta = byId(e.touches, g.ids[0]), tb = byId(e.touches, g.ids[1]);
+    if (!ta || !tb) return;
+    const a = pt(ta), b = pt(tb);
     const c1 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
     const d1 = Math.hypot(b[0] - a[0], b[1] - a[1]);
     let da = Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI - g.a0;
@@ -141,7 +146,8 @@ export function twoFinger(svgNode, zsel, zoom, opts) {
   }, { capture: true, passive: false });
 
   const end = (e) => {
-    if (g && e.touches.length < 2) {
+    const gone = g && [...e.changedTouches].some((t) => g.ids.includes(t.identifier));
+    if (g && (e.touches.length < 2 || gone)) {
       g = null;
       blockRest = e.touches.length > 0;   // verbleibender Finger soll nicht plötzlich verschieben
       opts.onEnd?.();

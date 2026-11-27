@@ -25,9 +25,11 @@ export function initOverview(ctx) {
   const gRot = svg.append('g').attr('class', 'rot');
   gRot.append('rect').attr('x', -20000).attr('y', -20000).attr('width', 40000).attr('height', 40000)
     .attr('fill', 'none').attr('pointer-events', 'all');
-  const gTiles = gRot.append('g');
-  const gThumbs = gRot.append('g');
-  const gFoot = gRot.append('g');
+  // Kacheln, Vorschaubilder und Rahmen sind keine Touch-Ziele: sie werden beim Zoomen/Drehen
+  // ausgetauscht, und ein entferntes Ziel "verschluckt" die Fingerbewegung. Antippen läuft über Koordinaten.
+  const gTiles = gRot.append('g').attr('pointer-events', 'none');
+  const gThumbs = gRot.append('g').attr('pointer-events', 'none');
+  const gFoot = gRot.append('g').attr('pointer-events', 'none');
   const gLines = gRot.append('g').attr('pointer-events', 'none');
   const gLabels = gRot.append('g').attr('pointer-events', 'none');
   const gPoi = gRot.append('g').attr('pointer-events', 'none');
