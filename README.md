@@ -44,14 +44,14 @@ Erst danach erscheint „Mulchkarten“ auf Android im WhatsApp-Teilen-Menü, un
 ## Arbeitsablauf
 
 **Karten bekommen (WhatsApp)**
-- Android: PDF in WhatsApp antippen → Teilen → *Mulchkarten*
+- Android: PDF in WhatsApp **lange drücken** → oben auf das **Teilen-Symbol** → *Mulchkarten*. (Nur antippen öffnet den Dialog „Öffnen mit“, dort kann die App auf Android nicht erscheinen.)
 - iPhone: PDF öffnen → Teilen → *In Dateien sichern*, dann in der App ＋ → *Karten / Stand importieren*
 
 Die Karte bekommt automatisch die eingestellte Saison. Revier, Name und Notiz trägt man über ✎ in der Kartenansicht ein.
 
 **Arbeitsstand weitergeben**
 1. Nach der Schicht ＋ → *Stand teilen* → Saison wählen → *Teilen* → WhatsApp-Gruppe auswählen.
-2. Der Nächste öffnet die Datei genauso wie eine PDF (Android: Teilen → Mulchkarten, iPhone: sichern + ＋ → Importieren).
+2. Der Nächste öffnet die Datei genauso wie eine PDF (Android: lange drücken → Teilen-Symbol → Mulchkarten, iPhone: sichern + ＋ → Importieren).
 3. Beim Zusammenführen gewinnt pro Karte und pro Linie die neueste Änderung. Gelöschte Linien werden auch beim Kollegen gelöscht. Ein Stand kann gefahrlos mehrfach importiert werden.
 
 Ein neuer Kollege ohne Karten setzt beim Teilen den Haken *Karten-PDFs mitschicken*. Dann steckt alles in **einer** Datei („Mulchpaket_….txt“), egal wie viele Karten es sind. Beim Import werden die Karten ausgepackt, schon vorhandene übersprungen. Kommt ein Stand für eine Karte an, deren PDF noch fehlt, erscheint sie als „PDF fehlt“. Sobald die PDF importiert ist, werden die Linien automatisch zugeordnet. Erkannt wird die Karte am Dateiinhalt, nicht am Dateinamen.

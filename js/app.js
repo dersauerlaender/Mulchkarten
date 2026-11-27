@@ -4,7 +4,7 @@ import * as M from './model.js';
 import { makeTransform, inPolygon, distToPolygon, distMeters, bboxOverlap } from './georef.js';
 import { initOverview } from './overview.js';
 
-export const APP_VERSION = '1.6.1';
+export const APP_VERSION = '1.6.2';
 const d3 = window.d3;
 const $ = (s) => document.querySelector(s);
 const KINDS = ['erledigt', 'offen', 'hinweis'];
