@@ -243,5 +243,5 @@ dialog h2:focus { outline: none; }
 
 /* Punkt-Fenster der Übersicht unten (Karte darüber bleibt sichtbar) */
 #view-overview .ov-info { top: auto; bottom: 8px; right: 8px; max-height: 62%; }
-body.ov-popup .fab-main { display: none; }
+body.ov-popup[data-view="view-overview"] .fab-main { display: none; }
 body.ov-popup .ov-legend, body.ov-popup .ov-attr, body.ov-popup .ov-hidden { display: none; }
