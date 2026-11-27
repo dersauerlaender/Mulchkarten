@@ -4,7 +4,7 @@ import * as M from './model.js';
 import { makeTransform, inPolygon, distToPolygon, distMeters, bboxOverlap } from './georef.js';
 import { initOverview } from './overview.js';
 
-export const APP_VERSION = '1.2.2';
+export const APP_VERSION = '1.2.3';
 const d3 = window.d3;
 const $ = (s) => document.querySelector(s);
 const KINDS = ['erledigt', 'offen', 'hinweis'];
@@ -79,6 +79,7 @@ async function init() {
   bindMap();
   bindDialogs();
   bindTimer();
+  bindHistory();
   ov = initOverview({
     esc, toast, openMap, getThumb: M.getThumb,
     getPos: () => S.pos,
@@ -193,8 +194,8 @@ function bindList() {
     if (!m.hasPdf) { toast('Für diese Karte fehlt noch die PDF.\nBitte die PDF aus WhatsApp importieren – Linien und Status werden dann automatisch zugeordnet.', 6000); return; }
     openMap(m.id);
   });
-  $('#btn-ov').onclick = () => { showView('view-overview'); ov.show(filteredMaps()); };
-  $('#ov-back').onclick = () => { showView('view-list'); renderList(); };
+  $('#btn-ov').onclick = () => { history.pushState({ v: 'view-overview' }, ''); showView('view-overview'); ov.show(filteredMaps()); };
+  $('#ov-back').onclick = () => history.back();
   $('#file-input').addEventListener('change', async (e) => {
     const files = [...e.target.files];
     e.target.value = '';
@@ -272,7 +273,7 @@ async function processShareInbox() {
     files.push(new File([await res.blob()], name, { type: res.headers.get('Content-Type') || '' }));
     await cache.delete(r);
   }
-  history.replaceState(null, '', location.pathname);
+  history.replaceState({ v: 'view-list' }, '', location.pathname);
   await handleFiles(files);
 }
 
@@ -340,7 +341,7 @@ function bindMap() {
     select(hit ? hit.dataset.id : null);
   });
 
-  $('#btn-back').onclick = closeMap;
+  $('#btn-back').onclick = () => history.back();
   $('#t-follow').onclick = () => {
     if (isFar()) {
       const d = distToPolygon([S.pos.lat, S.pos.lon], S.map.georef.footprint);
@@ -394,6 +395,9 @@ async function openMap(id) {
   if (!blob) { toast('Kartenbild fehlt – bitte PDF erneut importieren.'); return; }
   const cur = document.querySelector('.view.active')?.id;
   if (cur && cur !== 'view-map') S.returnView = cur;
+  // Verlauf: Karte -> Karte ersetzt den Eintrag, sonst neuer Eintrag (Android-Zurück)
+  if (cur === 'view-map') history.replaceState({ v: 'view-map' }, '');
+  else history.pushState({ v: 'view-map' }, '');
   S.map = m;
   S.T = makeTransform(m.georef.coef);
   S.mPerPx = distMeters(S.T.toLatLon(0, 0), S.T.toLatLon(100, 0)) / 100;
@@ -425,13 +429,41 @@ async function openMap(id) {
   updateInfo();
 }
 
-function closeMap() {
-  if (S.rec && !confirm('Track-Aufnahme läuft. Beenden und speichern?')) return;
+/** Karte verlassen (vom Verlauf aus aufgerufen) */
+function leaveMap(target) {
   if (S.rec) stopRec();
   S.map = null;
   setDraw(false);
-  showView(S.returnView || 'view-list');
+  showView(target);
   refreshMaps();
+  if (target === 'view-overview') ov.update(filteredMaps());
+}
+
+// Android-Zurück / Browser-Zurück
+function bindHistory() {
+  history.replaceState({ v: 'view-list' }, '');
+  window.addEventListener('popstate', (e) => {
+    const cur = document.querySelector('.view.active')?.id || 'view-list';
+    const target = e.state?.v || 'view-list';
+    // offener Dialog: nur den Dialog schließen, Ansicht bleibt
+    const dlg = document.querySelector('dialog[open]');
+    if (dlg) {
+      dlg.close('cancel');
+      history.pushState({ v: cur }, '');
+      return;
+    }
+    if (cur === 'view-map' && target !== 'view-map') {
+      if (S.rec && !confirm('Track-Aufnahme läuft. Beenden und speichern?')) {
+        history.pushState({ v: 'view-map' }, '');
+        return;
+      }
+      leaveMap(target);
+      return;
+    }
+    if (target === 'view-overview') { showView('view-overview'); ov.show(filteredMaps()); }
+    else if (target === 'view-list') { showView('view-list'); renderList(); }
+    else if (target === 'view-map' && !S.map) history.back();
+  });
 }
 
 /** Ganze Karte einpassen. Liefert den Einpass-Zoom. */
@@ -629,9 +661,7 @@ function bindDialogs() {
     } else if (dlg.returnValue === 'delete') {
       if (confirm(`Karte „${S.map.name}“ von diesem Gerät entfernen? Linien und Tracks bleiben erhalten.`)) {
         await M.deleteMapLocal(S.map.id);
-        S.map = null;
-        showView('view-list');
-        await refreshMaps();
+        history.back();
       }
     }
   });
