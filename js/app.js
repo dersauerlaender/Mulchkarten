@@ -6,7 +6,7 @@ import { initOverview } from './overview.js';
 import { oneFingerZoom, twoFinger } from './gestures.js';
 import { getBearing, setBearing, onBearing, rotPt, clientToLocal, animateBearing, updateCompass } from './rotation.js';
 
-export const APP_VERSION = '1.9.0';
+export const APP_VERSION = '1.9.1';
 const d3 = window.d3;
 const $ = (s) => document.querySelector(s);
 const KINDS = ['erledigt', 'offen', 'hinweis'];
@@ -1116,7 +1116,7 @@ function bindDialogs() {
   });
   const sf = $('#dlg-share form');
   sf.season.onchange = prepareShare;
-  sf.withPdf.onchange = prepareShare;
+  sf.withPdf.onchange = () => { $('#share-pdf-hint').hidden = !sf.withPdf.checked; prepareShare(); };
   sf.querySelector('button[value=ok]').addEventListener('click', (e) => {
     e.preventDefault();
     doShare();
@@ -1182,6 +1182,7 @@ function openShare() {
   f.season.innerHTML = seasons.map((s) => `<option value="${esc(s)}">Saison ${esc(s)}</option>`).join('') + '<option value="alle">Alle Saisons</option>';
   f.season.value = M.settings.season;
   f.withPdf.checked = false;
+  $('#share-pdf-hint').hidden = true;
   $('#dlg-share').showModal();
   prepareShare();
 }

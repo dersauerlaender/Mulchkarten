@@ -269,9 +269,10 @@
 <dialog id="dlg-share">
   <form method="dialog">
     <h2>Arbeitsstand teilen</h2>
-    <p class="muted">Erzeugt eine kleine Datei mit Status, Revieren, Linien und Tracks. Die anderen öffnen sie in WhatsApp und wählen „Mulchkarten“ – oder importieren sie über „＋ Importieren“.</p>
+    <p class="muted">Erzeugt eine kleine Datei mit Status, Revieren, Linien, Tracks, Zeiten und POIs. Android: Datei in WhatsApp lange drücken → Teilen → „Mulchkarten“. iPhone: Datei in WhatsApp sichern, dann in der App ＋ → „Karten / Stand importieren“.</p>
     <label>Saison <select name="season"></select></label>
     <label class="chk"><input type="checkbox" name="withPdf"> Karten-PDFs mitschicken – alles in einer Datei (für neue Kollegen)</label>
+    <p id="share-pdf-hint" class="warn" hidden>⚠️ <b>Nur für Android.</b> Am iPhone lässt sich diese große Datei in WhatsApp nicht öffnen (die Vorschau hängt sich auf). Für iPhone-Kollegen die Karten als einzelne PDFs schicken und den Stand <b>ohne</b> diesen Haken teilen.</p>
     <div class="row end">
       <button value="cancel" class="btn" formnovalidate>Abbrechen</button>
       <button value="ok" class="btn primary">Teilen</button>

@@ -56,7 +56,7 @@ Die Karte bekommt automatisch die eingestellte Saison. Revier, Name und Notiz tr
 2. Der Nächste öffnet die Datei genauso wie eine PDF (Android: lange drücken → Teilen-Symbol → Mulchkarten, iPhone: sichern + ＋ → Importieren).
 3. Beim Zusammenführen gewinnt pro Karte und pro Linie die neueste Änderung. Gelöschte Linien werden auch beim Kollegen gelöscht. Ein Stand kann gefahrlos mehrfach importiert werden.
 
-Ein neuer Kollege ohne Karten setzt beim Teilen den Haken *Karten-PDFs mitschicken*. Dann steckt alles in **einer** Datei („Mulchpaket_….txt“), egal wie viele Karten es sind. Beim Import werden die Karten ausgepackt, schon vorhandene übersprungen. Kommt ein Stand für eine Karte an, deren PDF noch fehlt, erscheint sie als „PDF fehlt“. Sobald die PDF importiert ist, werden die Linien automatisch zugeordnet. Erkannt wird die Karte am Dateiinhalt, nicht am Dateinamen.
+Ein neuer Kollege ohne Karten setzt beim Teilen den Haken *Karten-PDFs mitschicken*. (**Nur für Android**: Am iPhone hängt sich die WhatsApp-Vorschau an der großen Datei auf. iPhone-Kollegen bekommen die Karten als einzelne PDFs plus den Stand ohne Haken.) Dann steckt alles in **einer** Datei („Mulchpaket_….txt“), egal wie viele Karten es sind. Beim Import werden die Karten ausgepackt, schon vorhandene übersprungen. Kommt ein Stand für eine Karte an, deren PDF noch fehlt, erscheint sie als „PDF fehlt“. Sobald die PDF importiert ist, werden die Linien automatisch zugeordnet. Erkannt wird die Karte am Dateiinhalt, nicht am Dateinamen.
 
 ## POIs und Navigation
 
