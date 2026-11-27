@@ -4,7 +4,7 @@ import * as M from './model.js';
 import { makeTransform, inPolygon, distToPolygon, distMeters, bboxOverlap } from './georef.js';
 import { initOverview } from './overview.js';
 
-export const APP_VERSION = '1.4.1';
+export const APP_VERSION = '1.5.0';
 const d3 = window.d3;
 const $ = (s) => document.querySelector(s);
 const KINDS = ['erledigt', 'offen', 'hinweis'];
@@ -76,6 +76,77 @@ function busy(text) {
 }
 function showView(id) {
   document.querySelectorAll('.view').forEach((v) => v.classList.toggle('active', v.id === id));
+  document.body.dataset.view = id;
+  document.querySelectorAll('#navbar button').forEach((b) => b.classList.toggle('active', b.dataset.view === id));
+  closeFab();
+}
+
+// ---------- Navigationsleiste ----------
+const activeView = () => document.querySelector('.view.active')?.id || 'view-list';
+
+function showMain(id) {
+  showView(id);
+  if (id === 'view-overview') ov.show(filteredMaps());
+  else if (id === 'view-times') openTimesView();
+  else renderList();
+}
+
+/** Wechsel über die Navigationsleiste. Liste ist "Start": von dort neuer Verlaufseintrag, sonst ersetzen. */
+function navTo(id) {
+  const cur = activeView();
+  if (cur === id) return;
+  if (id === 'view-list') {
+    if (history.state?.v && history.state.v !== 'view-list') { history.back(); return; }
+    showMain(id);
+    return;
+  }
+  if (cur === 'view-list') history.pushState({ v: id }, '');
+  else history.replaceState({ v: id }, '');
+  showMain(id);
+}
+
+// ---------- Aktionsknopf (FAB-Menü) ----------
+function fabActions() {
+  const imp = ['📄', 'Karten / Stand importieren', () => $('#file-input').click()];
+  const share = ['⇪', 'Stand teilen', openShare];
+  switch (activeView()) {
+    case 'view-overview': return [['📍', 'POI an meiner Position', () => ov.addPoiHere()], imp, share];
+    case 'view-times': return [['＋', 'Zeit nachtragen', () => openTimeEdit(null)], ['📊', 'Zeiten als CSV teilen', shareCsv], share];
+    default: return [imp, share];
+  }
+}
+function openFab() {
+  const acts = fabActions();
+  const menu = $('#fab-menu');
+  menu.innerHTML = acts.map(([i, l], k) => `<button data-k="${k}" style="animation-delay:${(acts.length - 1 - k) * 30}ms"><span class="fi">${i}</span>${l}</button>`).join('');
+  menu.querySelectorAll('button').forEach((b) => (b.onclick = () => { const a = acts[+b.dataset.k]; closeFab(); a[2](); }));
+  menu.hidden = false;
+  $('#fab-scrim').hidden = false;
+  $('#fab').setAttribute('aria-expanded', 'true');
+  // Android-Zurück schließt das Menü (statt die App zu beenden)
+  if ('CloseWatcher' in window) {
+    fabWatcher = new CloseWatcher();
+    fabWatcher.onclose = () => { fabWatcher = null; closeFab(); };
+  } else {
+    history.pushState({ v: activeView(), fab: 1 }, '');
+  }
+}
+let fabWatcher = null;
+function closeFab() {
+  if (!$('#fab-menu') || !fabOpen()) return;
+  $('#fab-menu').hidden = true;
+  $('#fab-scrim').hidden = true;
+  $('#fab').setAttribute('aria-expanded', 'false');
+  if (fabWatcher) { const w = fabWatcher; fabWatcher = null; w.destroy(); }
+  if (history.state?.fab) history.replaceState({ v: activeView() }, '');
+}
+const fabOpen = () => $('#fab').getAttribute('aria-expanded') === 'true';
+
+function bindNav() {
+  document.querySelectorAll('#navbar button').forEach((b) => (b.onclick = () => navTo(b.dataset.view)));
+  $('#fab').onclick = () => (fabOpen() ? closeFab() : openFab());
+  $('#fab-scrim').onclick = closeFab;
+  document.querySelectorAll('.btn-settings').forEach((b) => (b.onclick = () => openSettings(false)));
 }
 
 // ---------- Start ----------
@@ -90,6 +161,8 @@ async function init() {
   bindDialogs();
   bindTimer();
   bindHistory();
+  bindNav();
+  document.body.dataset.view = 'view-list';
   bindUpdate();
   ov = initOverview({
     esc, toast, openMap, getThumb: M.getThumb,
@@ -270,8 +343,6 @@ function bindList() {
     if (!m.hasPdf) { toast('Für diese Karte fehlt noch die PDF.\nBitte die PDF aus WhatsApp importieren – Linien und Status werden dann automatisch zugeordnet.', 6000); return; }
     openMap(m.id);
   });
-  $('#btn-ov').onclick = () => { history.pushState({ v: 'view-overview' }, ''); showView('view-overview'); ov.show(filteredMaps()); };
-  $('#ov-back').onclick = () => history.back();
   $('#file-input').addEventListener('change', async (e) => {
     const files = [...e.target.files];
     e.target.value = '';
@@ -543,6 +614,7 @@ function bindHistory() {
     const cur = document.querySelector('.view.active')?.id || 'view-list';
     const target = e.state?.v || 'view-list';
     // offener Dialog: nur den Dialog schließen, Ansicht bleibt
+    if (fabOpen()) { closeFab(); return; }
     const dlg = document.querySelector('dialog[open]');
     if (dlg) {
       dlg.close('cancel');
@@ -557,9 +629,8 @@ function bindHistory() {
       leaveMap(target);
       return;
     }
-    if (target === 'view-overview') { showView('view-overview'); ov.show(filteredMaps()); }
-    else if (target === 'view-list') { showView('view-list'); renderList(); }
-    else if (target === 'view-map' && !S.map) history.back();
+    if (target === 'view-map') { if (!S.map) history.back(); return; }
+    showMain(target);
   });
 }
 
@@ -881,7 +952,6 @@ function bindDialogs() {
   });
 
   // Teilen
-  $('#btn-share').onclick = openShare;
   $('#dlg-noshare').addEventListener('close', () => {
     if ($('#dlg-noshare').returnValue === 'download' && pendingDownload) downloadFiles(pendingDownload);
     pendingDownload = null;
@@ -895,7 +965,6 @@ function bindDialogs() {
   });
 
   // Einstellungen
-  $('#btn-settings').onclick = () => openSettings(false);
   $('#dlg-settings').addEventListener('close', async () => {
     const dlg = $('#dlg-settings'), f = dlg.querySelector('form');
     if (dlg.returnValue === 'wipe') {
@@ -917,10 +986,7 @@ function bindDialogs() {
   });
 
   // Auswertung
-  $('#btn-stats').onclick = openStats;
   $('#stats-season').onchange = renderStats;
-  $('#stats-csv').onclick = shareCsv;
-  $('#stats-add').onclick = () => openTimeEdit(null);
   $('#stats-body').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-time]');
     if (b) openTimeEdit(b.dataset.time);
@@ -1022,11 +1088,11 @@ function doShare() {
 }
 
 // Auswertung
-function openStats() {
+function openTimesView() {
+  const sel = $('#stats-season'), prev = sel.value;
   const seasons = [...new Set([M.settings.season, ...S.maps.map((m) => m.season).filter(Boolean)])].sort().reverse();
   $('#stats-season').innerHTML = seasons.map((s) => `<option>${esc(s)}</option>`).join('') + '<option value="alle">Alle</option>';
-  $('#stats-season').value = M.settings.season;
-  $('#dlg-stats').showModal();
+  $('#stats-season').value = prev && [...sel.options].some((o) => o.value === prev) ? prev : M.settings.season;
   renderStats();
 }
 
@@ -1268,7 +1334,7 @@ async function onTimeEditClose() {
     Object.assign(t, { mapId: f.mapId.value, start: start.toISOString(), end: end.toISOString() });
     await M.saveTime(t);
   }
-  if ($('#dlg-stats').open) renderStats();
+  if (activeView() === 'view-times') renderStats();
 }
 
 init().catch((e) => { console.error(e); toast('Fehler beim Start: ' + e.message, 10000); });

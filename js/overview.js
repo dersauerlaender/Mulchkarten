@@ -235,7 +235,6 @@ export function initOverview(ctx) {
   }
 
   document.querySelector('#ov-fit').onclick = () => fitAll(true);
-  document.querySelector('#ov-addpoi').onclick = () => ctx.addPoiAtPos();
   document.querySelector('#ov-pos').onclick = () => {
     const p = ctx.getPos();
     if (!p) { ctx.toast('Noch keine GPS-Position.'); return; }
@@ -277,5 +276,6 @@ export function initOverview(ctx) {
     update(list) { if (list) maps = list; render(); },
     updatePos: renderPos,
     fitAll,
+    addPoiHere: () => ctx.addPoiAtPos(),
   };
 }

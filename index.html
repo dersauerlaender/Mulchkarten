@@ -23,9 +23,7 @@
 <section id="view-list" class="view active">
   <header class="bar">
     <h1>Mulchkarten</h1>
-    <button id="btn-ov" class="icon" title="Übersichtskarte" aria-label="Übersichtskarte">🗺</button>
-    <button id="btn-stats" class="icon" title="Auswertung" aria-label="Auswertung">⏱</button>
-    <button id="btn-settings" class="icon" title="Einstellungen" aria-label="Einstellungen">⚙</button>
+    <button class="icon btn-settings" title="Einstellungen" aria-label="Einstellungen">⚙</button>
   </header>
   <div class="timer-bar" hidden></div>
 
@@ -43,14 +41,9 @@
   <ul id="map-list" class="map-list"></ul>
   <div id="empty" class="empty" hidden>
     <p>Noch keine Karten.</p>
-    <p>Geo-PDFs aus WhatsApp hier importieren (oder in WhatsApp „Teilen → Mulchkarten“ wählen).</p>
+    <p>Unten rechts auf <b>＋</b> → „Importieren“ tippen – oder in WhatsApp die PDF antippen → Teilen → „Mulchkarten“.</p>
   </div>
-
-  <footer class="bottom">
-    <label class="btn primary" for="file-input">＋ Importieren</label>
-    <input id="file-input" type="file" multiple hidden>
-    <button id="btn-share" class="btn">⇪ Stand teilen</button>
-  </footer>
+  <input id="file-input" type="file" multiple hidden>
 </section>
 
 <!-- ===== Kartenansicht ===== -->
@@ -99,10 +92,10 @@
 <!-- ===== Übersichtskarte ===== -->
 <section id="view-overview" class="view">
   <header class="bar">
-    <button id="ov-back" class="icon" aria-label="Zur Liste">‹</button>
     <h1>Übersicht</h1>
     <button id="ov-layers" class="icon" title="Ebenen" aria-label="Ebenen">◫</button>
     <button id="ov-tiles" class="icon" title="Hintergrundkarte an/aus" aria-label="Hintergrundkarte an/aus">▦</button>
+    <button class="icon btn-settings" title="Einstellungen" aria-label="Einstellungen">⚙</button>
   </header>
   <div class="timer-bar" hidden></div>
   <div class="stage">
@@ -110,7 +103,6 @@
     <div id="ov-info" class="ov-info"></div>
     <button id="ov-hidden" class="ov-hidden" hidden></button>
     <div class="fab-col">
-      <button id="ov-addpoi" class="fab static" title="POI an meiner Position" aria-label="POI an meiner Position">＋</button>
       <button id="ov-fit" class="fab static" title="Alle Karten" aria-label="Alle Karten">⤢</button>
       <button id="ov-pos" class="fab static" title="Meine Position" aria-label="Meine Position">◎</button>
     </div>
@@ -118,6 +110,29 @@
     <div id="ov-attr" class="ov-attr">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende</div>
   </div>
 </section>
+
+<!-- ===== Zeiten ===== -->
+<section id="view-times" class="view">
+  <header class="bar">
+    <h1>Zeiten</h1>
+    <button class="icon btn-settings" title="Einstellungen" aria-label="Einstellungen">⚙</button>
+  </header>
+  <div class="timer-bar" hidden></div>
+  <div class="times-body">
+    <div class="filters"><select id="stats-season" aria-label="Saison"></select></div>
+    <div id="stats-body"></div>
+  </div>
+</section>
+
+<!-- ===== Navigationsleiste & Aktionsknopf ===== -->
+<nav id="navbar" class="navbar" aria-label="Hauptbereiche">
+  <button data-view="view-list" class="active"><span class="ni">📋</span><span>Karten</span></button>
+  <button data-view="view-overview"><span class="ni">🗺</span><span>Übersicht</span></button>
+  <button data-view="view-times"><span class="ni">⏱</span><span>Zeiten</span></button>
+</nav>
+<div id="fab-scrim" class="fab-scrim" hidden></div>
+<div id="fab-menu" class="fab-menu" hidden></div>
+<button id="fab" class="fab-main" aria-label="Aktionen" aria-expanded="false">＋</button>
 
 <!-- ===== Dialoge ===== -->
 <dialog id="dlg-about" class="wide">
@@ -278,18 +293,6 @@
   </form>
 </dialog>
 
-<dialog id="dlg-stats" class="wide">
-  <form method="dialog">
-    <h2>Auswertung</h2>
-    <label>Saison <select id="stats-season"></select></label>
-    <div id="stats-body"></div>
-    <div class="row end">
-      <button id="stats-add" type="button" class="btn">＋ Zeit nachtragen</button>
-      <button id="stats-csv" type="button" class="btn">Zeiten als CSV teilen</button>
-      <button value="ok" class="btn primary">Schließen</button>
-    </div>
-  </form>
-</dialog>
 
 <datalist id="dl-seasons"></datalist>
 <datalist id="dl-reviere"></datalist>

@@ -34,17 +34,24 @@ Danach auf jedem Handy die Adresse öffnen und die App auf den Startbildschirm l
 
 Erst danach erscheint „Mulchkarten“ auf Android im WhatsApp-Teilen-Menü, und der Speicher ist vor dem Aufräumen durch den Browser geschützt.
 
+## Bedienung
+
+- **Unten** wechselt die Leiste zwischen den drei Bereichen: 📋 **Karten** (Liste), 🗺 **Übersicht** und ⏱ **Zeiten**.
+- **＋ unten rechts** öffnet die passenden Aktionen: Karten/Stand importieren und Stand teilen, in der Übersicht zusätzlich „POI an meiner Position“, bei den Zeiten „Zeit nachtragen“ und den CSV-Export.
+- **⚙ oben rechts**: Name, Saison, Updates, „Über & Lizenzen“.
+- **Android-Zurück** schließt zuerst Menüs und Dialoge, dann die Karte. Aus der Übersicht oder den Zeiten geht es zurück zur Liste.
+
 ## Arbeitsablauf
 
 **Karten bekommen (WhatsApp)**
-- Android: PDF in WhatsApp lange drücken → Teilen → *Mulchkarten*
-- iPhone: PDF öffnen → Teilen → *In Dateien sichern*, dann in der App *＋ Importieren*
+- Android: PDF in WhatsApp antippen → Teilen → *Mulchkarten*
+- iPhone: PDF öffnen → Teilen → *In Dateien sichern*, dann in der App ＋ → *Karten / Stand importieren*
 
 Die Karte bekommt automatisch die eingestellte Saison. Revier, Name und Notiz trägt man über ✎ in der Kartenansicht ein.
 
 **Arbeitsstand weitergeben**
-1. Nach der Schicht *⇪ Stand teilen* → Saison wählen → *Teilen* → WhatsApp-Gruppe auswählen.
-2. Der Nächste öffnet die Datei genauso wie eine PDF (Android: Teilen → Mulchkarten, iPhone: sichern + Importieren).
+1. Nach der Schicht ＋ → *Stand teilen* → Saison wählen → *Teilen* → WhatsApp-Gruppe auswählen.
+2. Der Nächste öffnet die Datei genauso wie eine PDF (Android: Teilen → Mulchkarten, iPhone: sichern + ＋ → Importieren).
 3. Beim Zusammenführen gewinnt pro Karte und pro Linie die neueste Änderung. Gelöschte Linien werden auch beim Kollegen gelöscht. Ein Stand kann gefahrlos mehrfach importiert werden.
 
 Ein neuer Kollege ohne Karten setzt beim Teilen den Haken *Karten-PDFs mitschicken*. Kommt ein Stand für eine Karte an, deren PDF noch fehlt, erscheint sie als „PDF fehlt“. Sobald die PDF importiert ist, werden die Linien automatisch zugeordnet. Erkannt wird die Karte am Dateiinhalt, nicht am Dateinamen.
@@ -56,7 +63,7 @@ Ein neuer Kollege ohne Karten setzt beim Teilen den Haken *Karten-PDFs mitschick
   - **Google Maps**: öffnet direkt die Routenplanung zum Punkt.
   - **Teilen**: schickt einen Google-Maps-Link, z. B. per WhatsApp.
   - **Als POI speichern**: legt einen dauerhaften Punkt an.
-- **＋ in der Übersicht** legt einen POI an der eigenen GPS-Position an (z. B. „hier ist der Parkplatz“).
+- **＋ → „POI an meiner Position“** in der Übersicht legt einen POI an der eigenen GPS-Position an (z. B. „hier ist der Parkplatz“).
 - **Arten**: Parkplatz, Wendemöglichkeit, Schranke/Sperre, Gefahr/Hindernis, Treffpunkt, Sonstiges. Dazu Name und Notiz.
 - POIs erscheinen in der Übersicht und in jeder Karte. Antippen zeigt Notiz, Navigation und Bearbeiten.
 - POIs gehen beim **Stand teilen** immer mit, unabhängig von der gewählten Saison. Auch Änderungen und Löschungen kommen bei den anderen an.
@@ -70,7 +77,7 @@ Ein neuer Kollege ohne Karten setzt beim Teilen den Haken *Karten-PDFs mitschick
   - **Ab jetzt**: Die Anfahrt bleibt bei der alten Karte.
   - **Nicht wechseln**: Die Fahrt gehört zur alten Karte, z. B. bei der Rückfahrt zum Parkplatz. Für diese Karte fragt die App dann 30 Minuten nicht mehr.
 - Die Abfrage kommt nur, wenn die App offen ist. Hatte man das Handy weggelegt, erscheint sie beim nächsten Öffnen. „Mit Anfahrt“ rechnet trotzdem ab dem richtigen Zeitpunkt, weil sich die App den letzten Moment auf der alten Karte merkt.
-- In der Auswertung (⏱ oben in der Liste) lassen sich Einträge mit ✎ korrigieren oder löschen. Vergessene Zeiten trägt man über „＋ Zeit nachtragen“ nach.
+- Im Bereich ⏱ Zeiten lassen sich Einträge mit ✎ korrigieren oder löschen. Vergessene Zeiten trägt man über ＋ → „Zeit nachtragen“ nach.
 - Beim Teilen des Arbeitsstands gehen die abgeschlossenen Zeiteinträge mit. Jeder Eintrag trägt den Namen der Person.
 
 ## Grenzen
