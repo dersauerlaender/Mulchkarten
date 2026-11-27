@@ -1,6 +1,7 @@
 // Ein-Finger-Zoom wie bei Google Maps:
 //  - Doppeltippen: eine Stufe hineinzoomen (an der Stelle)
 //  - Doppeltippen und beim zweiten Tipp ziehen: runter = größer, hoch = kleiner
+import { rotPt, clientToLocal } from './rotation.js';
 const d3 = window.d3;
 
 const TAP_MS = 250;      // so kurz muss ein Tipp sein
@@ -9,13 +10,14 @@ const NEAR_PX = 35;      // max. Abstand der beiden Tipps
 const MOVE_PX = 10;      // darunter gilt es als Tipp, nicht als Ziehen
 
 /**
- * @param svgSel  d3-Auswahl des <svg>
- * @param zoom    d3.zoom-Verhalten, das auf svgSel liegt
- * @param opts    { enabled(): bool, onStart(): void }
+ * @param svgSel  d3-Auswahl des <svg> (Ereignisse)
+ * @param zoom    d3.zoom-Verhalten
+ * @param opts    { enabled(): bool, onStart(): void, zoomSel: Element mit dem Zoom (Standard: svgSel) }
  * @returns       { busy(): bool  – Geste läuft oder lief gerade (Klicks ignorieren) }
  */
 export function oneFingerZoom(svgSel, zoom, opts = {}) {
   const node = svgSel.node();
+  const zsel = opts.zoomSel || svgSel, znode = zsel.node();
   const enabled = opts.enabled || (() => true);
   let down = null;       // aktueller Fingerdruck {id, x, y, t}
   let lastTap = null;    // letzter kurzer Tipp {x, y, t}
@@ -26,19 +28,17 @@ export function oneFingerZoom(svgSel, zoom, opts = {}) {
   // d3 soll während der Geste nicht verschieben
   const f0 = zoom.filter();
   zoom.filter(function (ev) { return !g && f0.call(this, ev); });
-  svgSel.on('dblclick.zoom', null);   // Doppelklick übernehmen wir selbst
+  zsel.on('dblclick.zoom', null);   // Doppelklick übernehmen wir selbst
 
-  const local = (e) => {
-    const r = node.getBoundingClientRect();
-    return [e.clientX - r.left, e.clientY - r.top];
-  };
+  // lokale Koordinaten des Zoom-Elements (berücksichtigt eine Drehung)
+  const local = (e) => clientToLocal(znode, e.clientX, e.clientY);
 
   function apply(k, animate) {
     const [kMin, kMax] = zoom.scaleExtent();
     k = Math.max(kMin, Math.min(kMax, k));
     const t0 = g.t0, f = k / t0.k;
     const t = d3.zoomIdentity.translate(g.px - (g.px - t0.x) * f, g.py - (g.py - t0.y) * f).scale(k);
-    (animate ? svgSel.transition().duration(250) : svgSel).call(zoom.transform, t);
+    (animate ? zsel.transition().duration(250) : zsel).call(zoom.transform, t);
   }
 
   node.addEventListener('pointerdown', (e) => {
@@ -48,7 +48,7 @@ export function oneFingerZoom(svgSel, zoom, opts = {}) {
     const [x, y] = local(e);
     const now = Date.now();
     if (lastTap && now - lastTap.t < DOUBLE_MS && Math.hypot(x - lastTap.x, y - lastTap.y) < NEAR_PX) {
-      g = { id: e.pointerId, px: lastTap.x, py: lastTap.y, y0: y, t0: d3.zoomTransform(node), moved: false };
+      g = { id: e.pointerId, px: lastTap.x, py: lastTap.y, y0: e.clientY, t0: d3.zoomTransform(znode), moved: false };
       lastTap = null;
       node.setPointerCapture?.(e.pointerId);
       opts.onStart?.();
@@ -59,8 +59,7 @@ export function oneFingerZoom(svgSel, zoom, opts = {}) {
 
   node.addEventListener('pointermove', (e) => {
     if (!g || e.pointerId !== g.id) return;
-    const [, y] = local(e);
-    const dy = y - g.y0;
+    const dy = e.clientY - g.y0;   // Bildschirm-senkrecht, unabhängig von der Drehung
     if (!g.moved && Math.abs(dy) < MOVE_PX) return;
     g.moved = true;
     apply(g.t0.k * Math.exp(dy / 120), false);
@@ -91,4 +90,74 @@ export function oneFingerZoom(svgSel, zoom, opts = {}) {
     pending: () => !!lastTap && Date.now() - lastTap.t < DOUBLE_MS,
     DOUBLE_MS,
   };
+}
+
+/**
+ * Zwei Finger: zoomen, verschieben und – ab ~12° Verdrehung – drehen.
+ * Übernimmt Zwei-Finger-Gesten komplett (d3 bekommt sie nicht).
+ * @param svgNode  das <svg> (Ereignisse, Bildschirmbezug)
+ * @param zsel     d3-Auswahl des gedrehten Elements, auf dem der Zoom liegt
+ * @param opts     { getR(): Grad, setR(Grad), onStart(), onEnd() }
+ */
+export function twoFinger(svgNode, zsel, zoom, opts) {
+  const ROT_START = 12;
+  let g = null, blockRest = false;
+  const pt = (t) => { const r = svgNode.getBoundingClientRect(); return [t.clientX - r.left, t.clientY - r.top]; };
+  const center = () => { const r = svgNode.getBoundingClientRect(); return [r.width / 2, r.height / 2]; };
+
+  svgNode.addEventListener('touchstart', (e) => {
+    if (e.touches.length < 2) return;
+    e.stopPropagation();
+    if (g) return;
+    const a = pt(e.touches[0]), b = pt(e.touches[1]);
+    const c0 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const r0 = opts.getR(), t0 = d3.zoomTransform(zsel.node()), C = center();
+    g = {
+      c0, d0: Math.hypot(b[0] - a[0], b[1] - a[1]) || 1,
+      a0: Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI,
+      r0, t0, C, rotating: false, off: 0,
+      P: t0.invert(rotPt(c0, -r0, C)),   // Kartenpunkt unter der Fingermitte
+    };
+    opts.onStart?.();
+  }, { capture: true, passive: true });
+
+  svgNode.addEventListener('touchmove', (e) => {
+    if (!g && !blockRest) return;
+    e.stopPropagation();
+    if (e.cancelable) e.preventDefault();
+    if (!g || e.touches.length < 2) return;
+    const a = pt(e.touches[0]), b = pt(e.touches[1]);
+    const c1 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const d1 = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    let da = Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI - g.a0;
+    da = ((da + 540) % 360) - 180;
+    if (!g.rotating && Math.abs(da) > ROT_START) { g.rotating = true; g.off = Math.sign(da) * ROT_START; }
+    const r = g.rotating ? g.r0 + da - g.off : g.r0;
+    const [kMin, kMax] = zoom.scaleExtent();
+    const k = Math.max(kMin, Math.min(kMax, g.t0.k * d1 / g.d0));
+    const L = rotPt(c1, -r, g.C);
+    if (r !== opts.getR()) opts.setR(r);
+    zsel.call(zoom.transform, d3.zoomIdentity.translate(L[0] - k * g.P[0], L[1] - k * g.P[1]).scale(k));
+  }, { capture: true, passive: false });
+
+  const end = (e) => {
+    if (g && e.touches.length < 2) {
+      g = null;
+      blockRest = e.touches.length > 0;   // verbleibender Finger soll nicht plötzlich verschieben
+      opts.onEnd?.();
+    } else if (blockRest && e.touches.length === 0) blockRest = false;
+  };
+  svgNode.addEventListener('touchend', end, { capture: true });
+  svgNode.addEventListener('touchcancel', end, { capture: true });
+
+  // Am PC: Umschalt + Mausrad dreht
+  svgNode.addEventListener('wheel', (e) => {
+    if (!e.shiftKey) return;
+    e.stopPropagation();
+    e.preventDefault();
+    opts.setR(opts.getR() - (e.deltaY || e.deltaX) * 0.15);
+    opts.onEnd?.();
+  }, { capture: true, passive: false });
+
+  return { active: () => !!g };
 }

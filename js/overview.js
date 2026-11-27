@@ -1,7 +1,8 @@
 // Übersichtskarte: alle Kartenrahmen (nach Status gefärbt), Vorschaubilder der PDFs,
 // optional OpenStreetMap-Hintergrund (nur online), eigene Position.
 import { makeTransform, inPolygon } from './georef.js';
-import { oneFingerZoom } from './gestures.js';
+import { oneFingerZoom, twoFinger } from './gestures.js';
+import { getBearing, setBearing, onBearing, rotPt, animateBearing, updateCompass } from './rotation.js';
 
 const d3 = window.d3;
 const TILE = 256;
@@ -20,14 +21,22 @@ const fromWorld = ([x, y]) => [
 export function initOverview(ctx) {
   const svg = d3.select('#ov-svg');
   const defs = svg.append('defs');
-  const gTiles = svg.append('g');
-  const gThumbs = svg.append('g');
-  const gFoot = svg.append('g');
-  const gLines = svg.append('g').attr('pointer-events', 'none');
-  const gLabels = svg.append('g').attr('pointer-events', 'none');
-  const gPoi = svg.append('g').attr('pointer-events', 'none');
-  const gPick = svg.append('g').attr('pointer-events', 'none');
-  const gPos = svg.append('g').attr('pointer-events', 'none');
+  // gRot: Drehung um die Bildschirmmitte, darauf liegt der Zoom (lokale Koordinaten = ungedreht)
+  const gRot = svg.append('g').attr('class', 'rot');
+  gRot.append('rect').attr('x', -20000).attr('y', -20000).attr('width', 40000).attr('height', 40000)
+    .attr('fill', 'none').attr('pointer-events', 'all');
+  const gTiles = gRot.append('g');
+  const gThumbs = gRot.append('g');
+  const gFoot = gRot.append('g');
+  const gLines = gRot.append('g').attr('pointer-events', 'none');
+  const gLabels = gRot.append('g').attr('pointer-events', 'none');
+  const gPoi = gRot.append('g').attr('pointer-events', 'none');
+  const gPick = gRot.append('g').attr('pointer-events', 'none');
+  const gPos = gRot.append('g').attr('pointer-events', 'none');
+  const rot = () => -getBearing();                       // Drehwinkel auf dem Bildschirm
+  const center = () => { const r = size(); return [r.width / 2, r.height / 2]; };
+  const toScreen = (p) => rotPt(p, rot(), center());     // lokal -> Bildschirm
+  const toLocal = (p) => rotPt(p, -rot(), center());     // Bildschirm -> lokal
   let pick = null;   // angetippte Stelle (Stecknadel), solange das Fenster offen ist
   const thumbUrls = new Map();   // mapId -> objectURL | 'loading'
   let zt = d3.zoomIdentity;
@@ -53,13 +62,16 @@ export function initOverview(ctx) {
     .scaleExtent([1, 2 ** 20])
     .on('zoom', (ev) => { zt = ev.transform; render(true); })
     .on('end', () => renderLines());   // Linien erst nach der Geste genau neu berechnen
-  svg.call(zoom).on('dblclick.zoom', null);
-  const ofz = oneFingerZoom(svg, zoom);
+  gRot.call(zoom).on('dblclick.zoom', null);
+  const ofz = oneFingerZoom(svg, zoom, { zoomSel: gRot });
+  twoFinger(svg.node(), gRot, zoom, { getR: rot, setR: (r) => setBearing(-r), onEnd: () => renderLines() });
+  onBearing(() => { if (document.querySelector('#view-overview').classList.contains('active')) render(); });
+  document.querySelector('#ov-north').onclick = () => animateBearing(0);
 
   // Tippen: kurz warten, ob ein zweiter Tipp (Doppeltipp-Zoom) folgt
   svg.on('click', (ev) => {
     if (ofz.busy()) return;
-    const pt = d3.pointer(ev, svg.node());
+    const pt = d3.pointer(ev, gRot.node());   // lokale (ungedrehte) Koordinaten
     setTimeout(() => { if (!ofz.busy()) onTap(pt); }, ofz.DOUBLE_MS + 30);
   });
 
@@ -123,12 +135,14 @@ export function initOverview(ctx) {
       if (p) centerOn([p.lat, p.lon], 2 ** 13, animate);
       return;
     }
-    const w = pts.map(toWorld);
+    // Ausdehnung in gedrehter Lage bestimmen, Mitte zurückdrehen
+    const w = pts.map(toWorld).map((p) => rotPt(p, rot()));
     const [x0, x1] = d3.extent(w, (p) => p[0]), [y0, y1] = d3.extent(w, (p) => p[1]);
+    const mid = rotPt([(x0 + x1) / 2, (y0 + y1) / 2], -rot());
     const { width: W, height: H } = size();
     const k = Math.min(2 ** 17, 0.85 * Math.min(W / Math.max(x1 - x0, 1e-9), H / Math.max(y1 - y0, 1e-9)));
-    const t = d3.zoomIdentity.translate(W / 2 - ((x0 + x1) / 2) * k, H / 2 - ((y0 + y1) / 2) * k).scale(k);
-    (animate ? svg.transition().duration(500) : svg).call(zoom.transform, t);
+    const t = d3.zoomIdentity.translate(W / 2 - mid[0] * k, H / 2 - mid[1] * k).scale(k);
+    (animate ? gRot.transition().duration(500) : gRot).call(zoom.transform, t);
   }
 
   function centerOn(ll, k, animate) {
@@ -136,7 +150,7 @@ export function initOverview(ctx) {
     const { width: W, height: H } = size();
     k = k ?? Math.max(zt.k, 2 ** 13);
     const t = d3.zoomIdentity.translate(W / 2 - x * k, H / 2 - y * k).scale(k);
-    (animate ? svg.transition().duration(500) : svg).call(zoom.transform, t);
+    (animate ? gRot.transition().duration(500) : gRot).call(zoom.transform, t);
   }
 
   function renderTiles() {
@@ -144,7 +158,9 @@ export function initOverview(ctx) {
     const { width: W, height: H } = size();
     const z = Math.max(0, Math.min(19, Math.round(Math.log2(zt.k))));
     const n = 2 ** z, ts = TILE / n;
-    const [wx0, wy0] = zt.invert([0, 0]), [wx1, wy1] = zt.invert([W, H]);
+    // sichtbarer Bereich (gedreht) als Welt-Rechteck
+    const cs = [[0, 0], [W, 0], [0, H], [W, H]].map((p) => zt.invert(toLocal(p)));
+    const [wx0, wx1] = d3.extent(cs, (p) => p[0]), [wy0, wy1] = d3.extent(cs, (p) => p[1]);
     const tiles = [];
     for (let x = Math.floor(wx0 / ts); x <= Math.floor(wx1 / ts); x++) {
       for (let y = Math.max(0, Math.floor(wy0 / ts)); y <= Math.min(n - 1, Math.floor(wy1 / ts)); y++) {
@@ -195,6 +211,9 @@ export function initOverview(ctx) {
   }
 
   function render(zooming = false) {
+    const [cx, cy] = center();
+    gRot.attr('transform', `rotate(${rot()},${cx},${cy})`);
+    updateCompass(document.querySelector('#ov-north'));
     renderTiles();
     const visible = maps.filter((m) => m.georef && modeOf(m) !== 'hidden').sort(drawOrder);
     const nHidden = maps.filter((m) => m.georef && modeOf(m) === 'hidden').length;
@@ -224,6 +243,7 @@ export function initOverview(ctx) {
     gLabels.selectAll('text').data(visible.filter((m) => screenSize(m) > 70), (m) => m.id).join('text')
       .attr('class', 'ov-label').attr('opacity', (m) => (modeOf(m) === 'trans' ? 0.5 : 1))
       .attr('x', (m) => scr(centroid(m))[0]).attr('y', (m) => scr(centroid(m))[1])
+      .attr('transform', (m) => { const [x, y] = scr(centroid(m)); return `rotate(${-rot()},${x},${y})`; })
       .text((m) => m.name);
     if (zooming) moveLines(); else renderLines();
     renderPois();
@@ -294,7 +314,7 @@ export function initOverview(ctx) {
       ge.append('text').attr('class', 'poi-label').attr('y', 28);
       return ge;
     });
-    g.attr('transform', (p) => `translate(${scr(p.coords[0])})`);
+    g.attr('transform', (p) => `translate(${scr(p.coords[0])}) rotate(${-rot()})`);
     g.select('.poi-icon').text((p) => ctx.poiIcon(p));
     g.select('.poi-label').text((p) => (zt.k > 2 ** 13 ? p.name || '' : ''));
   }
@@ -303,17 +323,20 @@ export function initOverview(ctx) {
   function keepVisible(ll, el) {
     const sr = svg.node().getBoundingClientRect(), pr = el.getBoundingClientRect();
     const free = pr.top - sr.top;                 // sichtbare Höhe über dem Fenster
-    const [x, y] = scr(ll);
+    const [x, y] = toScreen(scr(ll));
     const dy = y > free - 45 || y < 45 ? free / 2 - y : 0;
     const dx = x < 30 || x > sr.width - 30 ? sr.width / 2 - x : 0;
-    if (dx || dy) svg.transition().duration(300).call(zoom.translateBy, dx / zt.k, dy / zt.k);
+    if (dx || dy) {
+      const [lx, ly] = rotPt([dx, dy], -rot());
+      gRot.transition().duration(300).call(zoom.translateBy, lx / zt.k, ly / zt.k);
+    }
   }
 
   function renderPick() {
     gPick.selectAll('*').remove();
     if (!pick) return;
     const [x, y] = scr(pick);
-    ctx.drawPin(gPick, x, y);
+    ctx.drawPin(gPick.append('g').attr('transform', `rotate(${-rot()},${x},${y})`), x, y);
   }
   // Fenster zu -> Stecknadel weg
   new MutationObserver(() => {

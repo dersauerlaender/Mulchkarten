@@ -1,5 +1,5 @@
 {
- "version": "1.8.2",
+ "version": "1.9.0",
  "assets": [
   "./",
   "./index.html",
@@ -12,6 +12,7 @@
   "./js/model.js",
   "./js/overview.js",
   "./js/pdfimport.js",
+  "./js/rotation.js",
   "./vendor/d3.min.js",
   "./vendor/pdf-lib.min.js",
   "./vendor/pdf.min.mjs",

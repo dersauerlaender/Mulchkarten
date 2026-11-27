@@ -40,6 +40,7 @@ Erst danach erscheint „Mulchkarten“ auf Android im WhatsApp-Teilen-Menü, un
 - **＋ unten rechts** öffnet die passenden Aktionen: Karten/Stand importieren und Stand teilen, in der Übersicht zusätzlich „POI an meiner Position“, bei den Zeiten „Zeit nachtragen“ und den CSV-Export.
 - **⚙ oben rechts**: Name, Saison, Updates, „Über & Lizenzen“.
 - **Zoomen mit einem Finger**: doppelt tippen zoomt eine Stufe hinein. Doppelt tippen und beim zweiten Mal den Finger ziehen: nach unten vergrößern, nach oben verkleinern. Mit zwei Fingern geht es wie gewohnt.
+- **Drehen**: mit zwei Fingern verdrehen (ab ca. 12°, damit normales Zoomen nicht dreht). Die Blickrichtung gilt gemeinsam für Übersicht und alle Karten und bleibt gespeichert. Der Kompass-Knopf (erscheint nur, wenn gedreht) richtet wieder nach Norden aus. Am PC: Umschalttaste + Mausrad.
 - **Android-Zurück** schließt zuerst Menüs und Dialoge, dann die Karte. Aus der Übersicht oder den Zeiten geht es zurück zur Liste.
 
 ## Arbeitsablauf

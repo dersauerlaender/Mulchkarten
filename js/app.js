@@ -3,9 +3,10 @@ import { db } from './db.js';
 import * as M from './model.js';
 import { makeTransform, inPolygon, distToPolygon, distMeters, bboxOverlap } from './georef.js';
 import { initOverview } from './overview.js';
-import { oneFingerZoom } from './gestures.js';
+import { oneFingerZoom, twoFinger } from './gestures.js';
+import { getBearing, setBearing, onBearing, rotPt, clientToLocal, animateBearing, updateCompass } from './rotation.js';
 
-export const APP_VERSION = '1.8.2';
+export const APP_VERSION = '1.9.0';
 const d3 = window.d3;
 const $ = (s) => document.querySelector(s);
 const KINDS = ['erledigt', 'offen', 'hinweis'];
@@ -473,18 +474,23 @@ async function processShareInbox() {
 }
 
 // ---------- Kartenansicht ----------
-let svg, gZoom, gImg, gFeat, gLive, gPoi, gPick, gPos;
+let svg, gRot, gZoom, gImg, gFeat, gLive, gPoi, gPick, gPos;
 let gest = null;   // laufende Zoom-/Verschiebe-Geste in der Kartenansicht
 
 function bindMap() {
   svg = d3.select('#svg');
-  gZoom = svg.append('g');
+  // gRot: Drehung um die Bildschirmmitte; darin der Zoom. Der Zoom hängt an gRot,
+  // damit Verschieben/Zoomen in gedrehtem Zustand richtig herum funktioniert.
+  gRot = svg.append('g').attr('class', 'rot');
+  gRot.append('rect').attr('x', -20000).attr('y', -20000).attr('width', 40000).attr('height', 40000)
+    .attr('fill', 'none').attr('pointer-events', 'all');
+  gZoom = gRot.append('g');
   gImg = gZoom.append('g');
   gFeat = gZoom.append('g');
   gLive = gZoom.append('g');
-  gPoi = svg.append('g');
-  gPick = svg.append('g').attr('pointer-events', 'none');
-  gPos = svg.append('g').attr('pointer-events', 'none');
+  gPoi = gRot.append('g');
+  gPick = gRot.append('g').attr('pointer-events', 'none');
+  gPos = gRot.append('g').attr('pointer-events', 'none');
   new MutationObserver(() => { if (!$('#map-pop').innerHTML && S.pick) { S.pick = null; drawPick(); } })
     .observe($('#map-pop'), { childList: true });
   svg.on('contextmenu', (e) => e.preventDefault());
@@ -513,9 +519,18 @@ function bindMap() {
       if (gest?.user && gest.zoomed && S.follow) centerOnPos(true, S.zt.k);
       gest = null;
     });
-  svg.call(S.zoom);
+  gRot.call(S.zoom);
   // Doppeltippen / Doppeltippen + Ziehen = Ein-Finger-Zoom
-  S.ofz = oneFingerZoom(svg, S.zoom, { enabled: () => !S.draw, onStart: () => { cancelLp(); select(null); } });
+  S.ofz = oneFingerZoom(svg, S.zoom, { zoomSel: gRot, enabled: () => !S.draw, onStart: () => { cancelLp(); select(null); } });
+  // Zwei Finger: zoomen, verschieben, drehen
+  twoFinger(svg.node(), gRot, S.zoom, {
+    getR: mapRot,
+    setR: (r) => setBearing(-r - S.phi),
+    onStart: () => { cancelLp(); cancelStroke(); },
+    onEnd: () => { if (S.follow) centerOnPos(true, S.zt.k); },
+  });
+  onBearing(() => { if (S.map) applyRot(); });
+  $('#t-north').onclick = () => animateBearing(0);
 
   // Freihand zeichnen
   const node = svg.node();
@@ -610,14 +625,28 @@ function bindMap() {
     select(null);
   };
   $('#sel-close').onclick = () => select(null);
-  window.addEventListener('resize', () => S.map && drawPos());
+  window.addEventListener('resize', () => S.map && applyRot());
 }
 
 function cancelStroke() { S.stroke = null; renderLive(); }
 
+// ---------- Drehung der Kartenansicht ----------
+/** Drehwinkel der Karte auf dem Bildschirm: Blickrichtung minus Nordabweichung des Kartenbilds */
+const mapRot = () => -getBearing() - (S.phi || 0);
+function stageCenter() { const r = svg.node().getBoundingClientRect(); return [r.width / 2, r.height / 2]; }
+function applyRot() {
+  const [cx, cy] = stageCenter();
+  gRot.attr('transform', `rotate(${mapRot()},${cx},${cy})`);
+  drawPos();
+  drawPois();
+  drawPick();
+  updateCompass($('#t-north'));
+}
+/** lokale (ungedrehte) Koordinaten -> Bildschirm (relativ zum SVG) */
+const toScreen = (p) => rotPt(p, mapRot(), stageCenter());
+
 function toLatLon(e) {
-  const r = svg.node().getBoundingClientRect();
-  const [u, v] = S.zt.invert([e.clientX - r.left, e.clientY - r.top]);
+  const [u, v] = S.zt.invert(clientToLocal(gRot.node(), e.clientX, e.clientY));
   return S.T.toLatLon(u, v).map((x) => +x.toFixed(7));
 }
 const toPx = ([lat, lon]) => S.T.toPixel(lat, lon);
@@ -634,6 +663,12 @@ async function openMap(id) {
   S.map = m;
   S.T = makeTransform(m.georef.coef);
   S.mPerPx = distMeters(S.T.toLatLon(0, 0), S.T.toLatLon(100, 0)) / 100;
+  // Wohin zeigt Norden im Kartenbild? (Winkel zur Bild-Senkrechten, meist ~0°)
+  {
+    const b = m.georef.bbox, c = [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2];
+    const p0 = S.T.toPixel(c[0], c[1]), p1 = S.T.toPixel(c[0] + 0.001, c[1]);
+    S.phi = (Math.atan2(p1[0] - p0[0], -(p1[1] - p0[1])) * 180) / Math.PI;
+  }
   S.undo = [];
   updateUndo();
   $('#map-pop').innerHTML = '';
@@ -642,6 +677,7 @@ async function openMap(id) {
   $('#map-title').textContent = m.name;
   $('#map-status').value = m.status;
   showView('view-map');
+  applyRot();
 
   const url = URL.createObjectURL(blob);
   gImg.selectAll('*').remove();
@@ -705,10 +741,12 @@ function bindHistory() {
 function fitMap(animate) {
   const m = S.map;
   const { width: W, height: H } = $('#stage').getBoundingClientRect();
-  const k0 = Math.min(W / m.width, H / m.height);
-  S.zoom.scaleExtent([k0 * 0.5, 4]).translateExtent([[-m.width * 0.5, -m.height * 0.5], [m.width * 1.5, m.height * 1.5]]);
-  const t = d3.zoomIdentity.translate((W - m.width * k0) / 2, (H - m.height * k0) / 2).scale(k0);
-  (animate ? svg.transition().duration(400) : svg).call(S.zoom.transform, t);
+  // gedrehtes Kartenbild muss ganz hineinpassen
+  const a = (mapRot() * Math.PI) / 180, c = Math.abs(Math.cos(a)), s = Math.abs(Math.sin(a));
+  const k0 = Math.min(W / (m.width * c + m.height * s), H / (m.width * s + m.height * c));
+  S.zoom.scaleExtent([k0 * 0.5, 4]).translateExtent([[-m.width, -m.height], [m.width * 2, m.height * 2]]);
+  const t = d3.zoomIdentity.translate(W / 2 - (m.width * k0) / 2, H / 2 - (m.height * k0) / 2).scale(k0);
+  (animate ? gRot.transition().duration(400) : gRot).call(S.zoom.transform, t);
   return k0;
 }
 
@@ -771,8 +809,9 @@ function drawPois() {
     ge.append('text').attr('class', 'poi-label').attr('y', 31);
     return ge;
   });
+  const rr = -mapRot();   // Symbole bleiben aufrecht
   g.attr('data-poi', (p) => p.id)
-    .attr('transform', (p) => `translate(${S.zt.apply(toPx(p.coords[0]))})`);
+    .attr('transform', (p) => `translate(${S.zt.apply(toPx(p.coords[0]))}) rotate(${rr})`);
   g.select('.poi-icon').text(poiIcon);
   g.select('.poi-label').text((p) => p.name || '');
 }
@@ -837,7 +876,7 @@ function drawPick() {
   gPick.selectAll('*').remove();
   if (!S.pick || !S.map) return;
   const [x, y] = S.zt.apply(toPx(S.pick));
-  drawPin(gPick, x, y);
+  drawPin(gPick.append('g').attr('transform', `rotate(${-mapRot()},${x},${y})`), x, y);
 }
 
 function showMapPopup(ll, poi) {
@@ -850,10 +889,14 @@ function showMapPopup(ll, poi) {
   requestAnimationFrame(() => {
     const sr = svg.node().getBoundingClientRect(), pr = el.getBoundingClientRect();
     const free = pr.top - sr.top;
-    const [x, y] = S.zt.apply(toPx(ll));
+    const [x, y] = toScreen(S.zt.apply(toPx(ll)));
     const dy = y > free - 45 || y < 45 ? free / 2 - y : 0;
     const dx = x < 30 || x > sr.width - 30 ? sr.width / 2 - x : 0;
-    if (dx || dy) { setFollow(false); svg.transition().duration(300).call(S.zoom.translateBy, dx / S.zt.k, dy / S.zt.k); }
+    if (dx || dy) {
+      setFollow(false);
+      const [lx, ly] = rotPt([dx, dy], -mapRot());   // Bildschirmverschiebung -> lokale Verschiebung
+      gRot.transition().duration(300).call(S.zoom.translateBy, lx / S.zt.k, ly / S.zt.k);
+    }
   });
 }
 
@@ -901,7 +944,7 @@ function drawPos() {
   gPos.append('circle').attr('cx', x).attr('cy', y).attr('r', Math.max(r, 10)).attr('fill', '#2563eb22').attr('stroke', '#2563eb66');
   if (S.pos.heading != null && !isNaN(S.pos.heading) && (S.pos.speed ?? 0) > 0.5) {
     gPos.append('path').attr('d', 'M0,-26 L9,-8 L-9,-8 Z').attr('fill', '#2563eb')
-      .attr('transform', `translate(${x},${y}) rotate(${S.pos.heading})`);
+      .attr('transform', `translate(${x},${y}) rotate(${S.pos.heading + (S.phi || 0)})`);
   }
   gPos.append('circle').attr('cx', x).attr('cy', y).attr('r', 9).attr('fill', '#2563eb').attr('stroke', '#fff').attr('stroke-width', 3);
 }
@@ -911,8 +954,8 @@ function centerOnPos(animate, k) {
   const [u, v] = toPx([S.pos.lat, S.pos.lon]);
   const { width: W, height: H } = $('#stage').getBoundingClientRect();
   const kk = k ?? Math.max(S.zt.k, 0.8);
-  const t = d3.zoomIdentity.translate(W / 2 - u * kk, H / 2 - v * kk).scale(kk);
-  (animate ? svg.transition().duration(400) : svg).call(S.zoom.transform, t);
+  const t = d3.zoomIdentity.translate(W / 2 - u * kk, H / 2 - v * kk).scale(kk);   // Drehung ist um die Mitte -> bleibt Mitte
+  (animate ? gRot.transition().duration(400) : gRot).call(S.zoom.transform, t);
 }
 
 function setFollow(on) {
