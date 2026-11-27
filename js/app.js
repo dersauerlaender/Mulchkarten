@@ -4,7 +4,7 @@ import * as M from './model.js';
 import { makeTransform, inPolygon, distToPolygon, distMeters, bboxOverlap } from './georef.js';
 import { initOverview } from './overview.js';
 
-export const APP_VERSION = '1.5.4';
+export const APP_VERSION = '1.6.0';
 const d3 = window.d3;
 const $ = (s) => document.querySelector(s);
 const KINDS = ['erledigt', 'offen', 'hinweis'];
@@ -366,21 +366,42 @@ async function handleFiles(files) {
   const isPdf = (f) => /\.pdf$/i.test(f.name) || f.type === 'application/pdf';
   const pdfs = files.filter(isPdf), others = files.filter((f) => !isPdf(f));
   const msgs = [];
+  // 1) Stand-Dateien lesen; eingebettete Karten-PDFs auspacken
+  const states = [];
+  for (const f of others) {
+    busy('Datei wird gelesen …');
+    try {
+      const data = parseState(await f.text());
+      if (data.pdfs?.length) { busy(`${data.pdfs.length} Karten werden ausgepackt …`); pdfs.push(...(await M.extractPdfs(data))); }
+      states.push({ f, data });
+    } catch (err) {
+      console.error(err);
+      msgs.push(`✗ ${f.name}: ${err instanceof SyntaxError ? 'keine gültige Mulchkarten-Datei' : err.message}`);
+    }
+  }
+  // 2) Karten zuerst, damit der Stand sie danach direkt zuordnen kann
+  const cnt = { neu: 0, doppelt: 0, ergänzt: 0 };
+  const neu = [];
   let n = 0;
   for (const f of pdfs) {
     busy(`Karte ${++n}/${pdfs.length} wird eingelesen …\n${f.name}`);
     try {
       const r = await M.importPdfFile(f);
-      msgs.push(r.result === 'doppelt' ? `„${r.map.name}“ war schon vorhanden` : r.result === 'ergänzt' ? `PDF für „${r.map.name}“ ergänzt` : `Neu: „${r.map.name}“`);
+      cnt[r.result]++;
+      if (r.result === 'neu') neu.push(r.map.name);
     } catch (err) {
       console.error(err);
       msgs.push(`✗ ${f.name}: ${err.message}`);
     }
   }
-  for (const f of others) {
+  if (pdfs.length) {
+    msgs.unshift(pdfs.length === 1 && neu.length === 1 ? `Neu: „${neu[0]}“`
+      : `Karten: ${cnt.neu} neu, ${cnt.ergänzt ? cnt.ergänzt + ' ergänzt, ' : ''}${cnt.doppelt} schon vorhanden`);
+  }
+  // 3) Stände zusammenführen
+  for (const { f, data } of states) {
     busy('Arbeitsstand wird übernommen …');
     try {
-      const data = parseState(await f.text());
       const s = await M.mergeState(data);
       msgs.push(`Stand von ${data.exportedBy || '?'} (${fmtDate(data.exportedAt)} ${fmtTime(data.exportedAt)}) übernommen:` +
         ` ${s.mapsNew + s.mapsUpd} Karten aktualisiert, ${s.featNew} Linien neu, ${s.featUpd} geändert, ${s.featDel} gelöscht, ${s.timesNew} Zeiteinträge neu` +
@@ -1101,16 +1122,15 @@ async function prepareShare() {
   const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}_${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}`;
   const safeUser = (M.settings.user || 'stand').replace(/[^\wäöüÄÖÜß-]+/g, '');
   // .txt statt .json: Android-Chrome erlaubt beim Teilen nur bestimmte Dateitypen.
-  const files = [new File([JSON.stringify(data)], `Mulchstand_${stamp}_${safeUser}.txt`, { type: 'text/plain' })];
-  if (f.withPdf.checked) {
-    for (const m of data.maps) {
-      const pdf = await M.getPdf(m.id);
-      if (pdf) files.push(new File([pdf], (m.fileName || m.name + '.pdf').replace(/[\\/]/g, '_'), { type: 'application/pdf' }));
-    }
-  }
+  // Mit Karten: alles in EINER Datei (ZIP lässt Chrome beim Teilen nicht zu)
+  if (f.withPdf.checked) { btn.textContent = 'Karten werden eingepackt …'; await M.attachPdfs(data); }
+  const name = `${data.pdfs ? 'Mulchpaket' : 'Mulchstand'}_${stamp}_${safeUser}.txt`;
+  const files = [new File([JSON.stringify(data)], name, { type: 'text/plain' })];
   sharePrepared = { files, data };
   btn.disabled = false;
-  btn.textContent = `Teilen (${data.maps.length} Karten, ${data.features.filter((x) => !x.deleted).length} Linien${files.length > 1 ? `, ${files.length - 1} PDFs` : ''})`;
+  const mb = files[0].size / 1e6;
+  btn.textContent = `Teilen (${data.maps.length} Karten, ${data.features.filter((x) => !x.deleted).length} Linien` +
+    `${data.pdfs ? `, mit ${data.pdfs.length} PDFs · ${mb.toFixed(mb < 10 ? 1 : 0).replace('.', ',')} MB` : ''})`;
 }
 
 async function shareFiles(files, title) {

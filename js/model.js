@@ -1,6 +1,6 @@
 // Datenmodell: Karten, Zeichnungen/Tracks, Import/Export des Arbeitsstands.
 import { db } from './db.js';
-import { processPdf, nameFromFile } from './pdfimport.js';
+import { processPdf, nameFromFile, sha256Hex } from './pdfimport.js';
 import { bboxOf, lineLength } from './georef.js';
 
 export const FORMAT = 'mulchkarten-stand';
@@ -72,6 +72,10 @@ export async function getThumb(id) {
 
 /** Eine PDF importieren. Rückgabe: 'neu' | 'doppelt' | 'ergänzt' (Platzhalter gefüllt) */
 export async function importPdfFile(file) {
+  // schon vorhanden? Dann gar nicht erst neu einlesen (spart bei Paketen viel Zeit)
+  const quickId = (await sha256Hex(await file.arrayBuffer())).slice(0, 20);
+  const known = await getMap(quickId);
+  if (known?.hasPdf && (await getImage(quickId))) return { result: 'doppelt', map: known };
   const r = await processPdf(file);
   const existing = await getMap(r.id);
   await db.put('blobs', r.imgBlob, r.id + ':img');
@@ -223,6 +227,34 @@ export async function mergeState(data) {
     }
   }
   return stats;
+}
+
+// ---------- Karten-PDFs im Stand mitschicken ----------
+const blobToB64 = (blob) => new Promise((res, rej) => {
+  const r = new FileReader();
+  r.onload = () => res(String(r.result).split(',')[1]);
+  r.onerror = () => rej(r.error);
+  r.readAsDataURL(blob);
+});
+
+/** Hängt die PDFs der exportierten Karten an (Base64), damit alles in EINER Datei geteilt werden kann. */
+export async function attachPdfs(data) {
+  data.pdfs = [];
+  for (const m of data.maps) {
+    const pdf = await getPdf(m.id);
+    if (pdf) data.pdfs.push({ id: m.id, fileName: m.fileName || `${m.name}.pdf`, b64: await blobToB64(pdf) });
+  }
+  return data;
+}
+
+/** PDFs aus einem Stand-Paket wieder als Dateien */
+export async function extractPdfs(data) {
+  const files = [];
+  for (const p of data.pdfs || []) {
+    const blob = await (await fetch(`data:application/pdf;base64,${p.b64}`)).blob();
+    files.push(new File([blob], p.fileName, { type: 'application/pdf' }));
+  }
+  return files;
 }
 
 // ---------- Auswertung ----------
