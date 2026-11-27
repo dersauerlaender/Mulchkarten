@@ -247,7 +247,7 @@
 
 <dialog id="dlg-edit">
   <form method="dialog">
-    <h2>Karte bearbeiten</h2>
+    <h2 tabindex="-1" autofocus>Karte bearbeiten</h2>
     <label>Name <input name="name" required></label>
     <label>Saison <input name="season" list="dl-seasons" placeholder="26/27" pattern="\d{2}/\d{2}"></label>
     <label>Revier (optional) <input name="revier" list="dl-reviere"></label>
@@ -277,7 +277,7 @@
 
 <dialog id="dlg-settings">
   <form method="dialog">
-    <h2>Einstellungen</h2>
+    <h2 tabindex="-1">Einstellungen</h2>
     <label>Dein Name / Kürzel <input name="user" required placeholder="z. B. Christian"></label>
     <label>Aktuelle Saison <input name="season" list="dl-seasons" pattern="\d{2}/\d{2}"></label>
     <p class="muted" id="storage-info"></p>

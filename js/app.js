@@ -4,7 +4,7 @@ import * as M from './model.js';
 import { makeTransform, inPolygon, distToPolygon, distMeters, bboxOverlap } from './georef.js';
 import { initOverview } from './overview.js';
 
-export const APP_VERSION = '1.5.1';
+export const APP_VERSION = '1.5.2';
 const d3 = window.d3;
 const $ = (s) => document.querySelector(s);
 const KINDS = ['erledigt', 'offen', 'hinweis'];
@@ -1041,6 +1041,10 @@ async function openSettings(first) {
   $('#storage-info').textContent = (est ? `Belegt: ${(est.usage / 1e6).toFixed(1)} MB. ` : '') +
     (persisted ? 'Speicher ist dauerhaft geschützt.' : 'Hinweis: App auf den Startbildschirm legen, damit der Browser die Daten nicht aufräumt.');
   if (first) $('#storage-info').textContent = 'Willkommen! Bitte deinen Namen eintragen – er erscheint bei Tracks, Linien und „fertig“-Markierungen.';
+  // Tastatur nur öffnen, wenn noch kein Name eingetragen ist
+  const noName = !M.settings.user;
+  f.user.autofocus = noName;
+  $('#dlg-settings h2').autofocus = !noName;
   $('#dlg-settings').showModal();
 }
 

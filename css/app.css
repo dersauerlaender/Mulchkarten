@@ -235,3 +235,5 @@ body[data-view="view-map"] .navbar, body[data-view="view-map"] .fab-main { displ
 .toast { pointer-events: auto; display: flex; align-items: center; gap: 12px; }
 .toast[hidden] { display: none; }
 .toast button { border: 0; background: none; color: #8ce0a6; font-weight: 800; font-size: .95rem; padding: 6px 4px; white-space: nowrap; }
+
+dialog h2:focus { outline: none; }
