@@ -77,6 +77,7 @@ export async function importPdfFile(file) {
   await db.put('blobs', r.imgBlob, r.id + ':img');
   await db.put('blobs', r.pdfBlob, r.id + ':pdf');
   if (existing?.hasPdf) return { result: 'doppelt', map: existing };
+  const t = now();
   const base = existing || {
     id: r.id,
     name: nameFromFile(file.name || 'Karte'),
@@ -84,8 +85,8 @@ export async function importPdfFile(file) {
     revier: '',
     note: '',
     status: 'offen',
-    addedAt: now(),
-    updatedAt: now(),
+    addedAt: t,
+    updatedAt: t,   // gleich addedAt = "unbearbeitet" -> verliert beim Zusammenführen immer
     updatedBy: settings.user,
   };
   Object.assign(base, {
@@ -186,6 +187,8 @@ export async function buildExport({ season = 'alle' } = {}) {
 }
 
 const newer = (a, b) => (a?.updatedAt || '') > (b?.updatedAt || '');
+/** Karte nur importiert, nie bearbeitet (Status, Revier, Name …) */
+const isPristine = (m) => !!m?.addedAt && m.updatedAt === m.addedAt;
 
 /** Führt einen fremden Stand zusammen. Neuere Änderung gewinnt (pro Karte, pro Linie). */
 export async function mergeState(data) {
@@ -196,7 +199,7 @@ export async function mergeState(data) {
     if (!loc) {
       await db.put('maps', { ...inc, hasPdf: false });
       stats.mapsNew++; stats.missingPdf++;
-    } else if (newer(inc, loc)) {
+    } else if ((newer(inc, loc) && !isPristine(inc)) || (isPristine(loc) && !isPristine(inc))) {
       const { width, height, georef, ...meta } = inc;
       await db.put('maps', { ...loc, ...meta });
       stats.mapsUpd++;
