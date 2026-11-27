@@ -11,7 +11,7 @@ Offline-Web-App (PWA) für Geo-PDF-Karten (z. B. ArcGIS-Exporte von Hessen Forst
 - **Arbeitsstand teilen** über WhatsApp (kleine .txt-Datei), Import beim Kollegen führt die Stände zusammen
 - **Zeiterfassung pro Karte** mit Zählstellen-Wechsel (siehe unten), Zeiten nachtragen und korrigieren
 - **Auswertung**: Stunden je Revier, Karte und Person, km aus den Tracks, Export als CSV
-- **Übersichtskarte** (🗺): alle Kartenrahmen nach Status gefärbt, mit den PDF-Karten als Vorschaubild (auch offline), dazu OpenStreetMap als Hintergrund, wenn Internet da ist (▦ schaltet ihn ab). Antippen öffnet die Karte.
+- **Übersichtskarte** (🗺): alle Kartenrahmen nach Status gefärbt, mit den PDF-Karten als Vorschaubild (auch offline), dazu OpenStreetMap als Hintergrund, wenn Internet da ist (▦ schaltet ihn ab). Antippen zeigt die Karten an dieser Stelle mit „Öffnen“, „Nach vorn“, „Transparent“ und „Ausblenden“. Über ◫ Ebenen lassen sich alle Karten auf Sichtbar, Transparent oder Aus stellen. Das gilt nur für die Übersicht auf dem eigenen Gerät.
 - **⤢ Ganze Karte**: holt die Ansicht zurück auf die komplette Karte. „Position“ springt nicht mehr ins Leere, wenn man mehr als 3 km entfernt ist.
 
 Alle Daten liegen nur auf dem jeweiligen Handy (IndexedDB). Es gibt keinen Server und kein Konto.
@@ -62,6 +62,8 @@ Ein neuer Kollege ohne Karten setzt beim Teilen den Haken *Karten-PDFs mitschick
 - Beim Teilen des Arbeitsstands gehen die abgeschlossenen Zeiteinträge mit. Jeder Eintrag trägt den Namen der Person.
 
 ## Grenzen
+
+- **Browser:** Auf Android die App über **Chrome** installieren. Firefox kann aus Web-Apps keine Dateien an WhatsApp übergeben und taucht auch nicht im WhatsApp-Teilen-Menü auf. Firefox kann trotzdem Standardbrowser bleiben. Auf dem iPhone Safari verwenden.
 
 - **Track-Aufnahme nur bei eingeschaltetem Bildschirm.** Web-Apps bekommen kein GPS, solange der Bildschirm aus ist oder die App im Hintergrund läuft. Die App hält den Bildschirm während der Aufnahme wach (Wake Lock). Wird sie trotzdem beendet, wird der Track beim nächsten Start gespeichert.
 - Die Karte wird beim Import einmal als Bild mit bis zu 4096 px Kantenlänge gespeichert. Bei sehr großen Karten (A0) wird sie beim starken Hineinzoomen unscharf.

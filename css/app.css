@@ -149,8 +149,20 @@ dialog input:not([type=checkbox]), dialog select, dialog textarea { display: blo
 #ov-svg { width: 100%; height: 100%; display: block; touch-action: none; user-select: none; background: #e9e6df; }
 .ov-label { font-size: 13px; font-weight: 700; fill: #1d221f; text-anchor: middle; paint-order: stroke; stroke: #fff; stroke-width: 3.5px; stroke-linejoin: round; }
 .ov-info { position: absolute; left: 8px; right: 70px; top: 8px; display: flex; flex-direction: column; gap: 6px; }
-.ov-info button { text-align: left; border: 0; border-radius: 10px; background: #fff; padding: 10px 12px; box-shadow: 0 2px 8px #0003; display: flex; flex-direction: column; }
-.ov-info button span { font-size: .85rem; color: var(--muted); }
+.ov-info { max-height: 60%; overflow-y: auto; }
+.ov-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px #0003; padding: 8px; }
+.ov-open { width: 100%; text-align: left; border: 0; background: none; padding: 4px 4px 8px; display: flex; flex-direction: column; font-size: 1rem; }
+.ov-open span { font-size: .85rem; color: var(--muted); }
+.ov-acts { display: flex; gap: 6px; }
+.ov-acts button { flex: 1; border: 1px solid var(--line); background: #f4f2ec; border-radius: 8px; padding: 8px 4px; font-size: .82rem; font-weight: 600; min-height: 40px; }
+.ov-close { align-self: flex-end; border: 0; background: #fff; border-radius: 50%; width: 36px; height: 36px; box-shadow: 0 2px 8px #0003; }
+.ov-hidden { position: absolute; left: 8px; bottom: 60px; border: 0; background: #1d221f; color: #fff; border-radius: 999px; padding: 6px 12px; font-size: .82rem; }
+.ov-hidden[hidden] { display: none; }
+.layers-list { list-style: none; margin: 8px 0; padding: 0; max-height: 55vh; overflow-y: auto; }
+.layers-list li { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.layers-list li span { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.layers-list li small { color: var(--muted); }
+.layers-list select { width: auto !important; margin: 0 !important; padding: 8px !important; }
 .ov-legend { position: absolute; left: 8px; bottom: 26px; background: #ffffffe6; border-radius: 8px; padding: 4px 8px; font-size: .8rem; display: flex; align-items: center; gap: 4px; }
 .ov-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-left: 4px; }
 .ov-attr { position: absolute; right: 4px; bottom: 4px; font-size: .7rem; background: #fffc; padding: 1px 5px; border-radius: 4px; }

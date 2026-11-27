@@ -96,12 +96,14 @@
   <header class="bar">
     <button id="ov-back" class="icon" aria-label="Zur Liste">‹</button>
     <h1>Übersicht</h1>
+    <button id="ov-layers" class="icon" title="Ebenen" aria-label="Ebenen">◫</button>
     <button id="ov-tiles" class="icon" title="Hintergrundkarte an/aus" aria-label="Hintergrundkarte an/aus">▦</button>
   </header>
   <div class="timer-bar" hidden></div>
   <div class="stage">
     <svg id="ov-svg"></svg>
     <div id="ov-info" class="ov-info"></div>
+    <button id="ov-hidden" class="ov-hidden" hidden></button>
     <div class="fab-col">
       <button id="ov-fit" class="fab static" title="Alle Karten" aria-label="Alle Karten">⤢</button>
       <button id="ov-pos" class="fab static" title="Meine Position" aria-label="Meine Position">◎</button>
@@ -112,6 +114,29 @@
 </section>
 
 <!-- ===== Dialoge ===== -->
+<dialog id="dlg-layers">
+  <form method="dialog">
+    <h2>Ebenen</h2>
+    <p class="muted">Gilt nur für die Übersichtskarte auf diesem Gerät. Tipp: Karte in der Übersicht antippen → „Nach vorn“.</p>
+    <ul id="layers-list" class="layers-list"></ul>
+    <div class="row end">
+      <button type="button" id="layers-reset" class="btn">Alle sichtbar</button>
+      <button value="ok" class="btn primary">Fertig</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-noshare">
+  <form method="dialog">
+    <h2>Teilen geht in diesem Browser nicht</h2>
+    <p id="noshare-text"></p>
+    <div class="row end">
+      <button value="download" class="btn">Trotzdem herunterladen</button>
+      <button value="ok" class="btn primary">OK</button>
+    </div>
+  </form>
+</dialog>
+
 <dialog id="dlg-switch">
   <form method="dialog">
     <h2>Zählstelle wechseln?</h2>

@@ -4,7 +4,7 @@ import * as M from './model.js';
 import { makeTransform, inPolygon, distToPolygon, distMeters, bboxOverlap } from './georef.js';
 import { initOverview } from './overview.js';
 
-export const APP_VERSION = '1.1.0';
+export const APP_VERSION = '1.2.0';
 const d3 = window.d3;
 const $ = (s) => document.querySelector(s);
 const KINDS = ['erledigt', 'offen', 'hinweis'];
@@ -616,6 +616,10 @@ function bindDialogs() {
 
   // Teilen
   $('#btn-share').onclick = openShare;
+  $('#dlg-noshare').addEventListener('close', () => {
+    if ($('#dlg-noshare').returnValue === 'download' && pendingDownload) downloadFiles(pendingDownload);
+    pendingDownload = null;
+  });
   const sf = $('#dlg-share form');
   sf.season.onchange = prepareShare;
   sf.withPdf.onchange = prepareShare;
@@ -720,7 +724,20 @@ async function shareFiles(files, title) {
       console.warn(err);
     }
   }
-  // Fallback: herunterladen
+  // Fallback: erklären und auf Wunsch herunterladen
+  pendingDownload = files;
+  const ff = /Firefox|FxiOS/.test(navigator.userAgent);
+  $('#noshare-text').textContent = (ff
+    ? 'Firefox kann aus Web-Apps keine Dateien an WhatsApp übergeben (und auch keine aus WhatsApp empfangen). '
+    : 'Dieser Browser kann aus Web-Apps keine Dateien an andere Apps übergeben. ') +
+    'Lösung: Die Mulchkarten-Adresse einmal in Chrome öffnen und dort über ⋮ → „App installieren“ einrichten. Die installierte App läuft dann eigenständig, Firefox kann trotzdem dein Standardbrowser bleiben. ' +
+    'Achtung: Die Daten liegen pro Browser getrennt – vorher hier „Trotzdem herunterladen“ und die Datei in der Chrome-App importieren.';
+  $('#dlg-noshare').showModal();
+  return false;
+}
+
+let pendingDownload = null;
+function downloadFiles(files) {
   for (const f of files) {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(f);
@@ -729,8 +746,6 @@ async function shareFiles(files, title) {
     a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
   }
-  toast('Teilen wird hier nicht unterstützt – Datei wurde heruntergeladen.');
-  return true;
 }
 
 function doShare() {

@@ -29,6 +29,17 @@ export function initOverview(ctx) {
   let fitted = false;
   let maps = [];
 
+  // Anzeige je Karte (nur auf diesem Gerät): mode 'trans' | 'hidden', z = Reihenfolge
+  let prefs = {};
+  try { prefs = JSON.parse(localStorage.getItem('ov-prefs') || '{}'); } catch { prefs = {}; }
+  const savePrefs = () => localStorage.setItem('ov-prefs', JSON.stringify(prefs));
+  const modeOf = (m) => prefs[m.id]?.mode || 'normal';
+  const setMode = (id, mode) => { prefs[id] = { ...prefs[id], mode }; savePrefs(); render(); };
+  let zTop = Math.max(0, ...Object.values(prefs).map((p) => p.z || 0));
+  const toFront = (id) => { prefs[id] = { ...prefs[id], z: ++zTop, mode: prefs[id]?.mode === 'hidden' ? 'normal' : prefs[id]?.mode }; savePrefs(); render(); };
+  // transparente zuerst, dann nach "Nach vorn"-Reihenfolge
+  const drawOrder = (a, b) => (modeOf(a) === 'trans') - (modeOf(b) === 'trans') || (prefs[a.id]?.z || 0) - (prefs[b.id]?.z || 0);
+
   const scr = (ll) => zt.apply(toWorld(ll));
   const size = () => svg.node().getBoundingClientRect();
   const useTiles = () => localStorage.getItem('ov-tiles') !== '0';
@@ -41,10 +52,11 @@ export function initOverview(ctx) {
   svg.on('click', (ev) => {
     const [mx, my] = d3.pointer(ev, svg.node());
     const ll = fromWorld(zt.invert([mx, my]));
-    let hits = maps.filter((m) => m.georef && inPolygon(ll, m.georef.footprint));
+    const shown = maps.filter((m) => m.georef && modeOf(m) !== 'hidden');
+    let hits = shown.filter((m) => inPolygon(ll, m.georef.footprint)).sort(drawOrder).reverse();
     if (!hits.length) {
       // weit herausgezoomt: nächstgelegenen Punkt nehmen
-      hits = maps.filter((m) => m.georef).map((m) => {
+      hits = shown.map((m) => {
         const [x, y] = scr(centroid(m));
         return { m, d: Math.hypot(x - mx, y - my) };
       }).filter((x) => x.d < 26).sort((a, b) => a.d - b.d).map((x) => x.m).slice(0, 1);
@@ -60,8 +72,22 @@ export function initOverview(ctx) {
   function showInfo(hits) {
     const el = document.querySelector('#ov-info');
     if (!hits.length) { el.innerHTML = ''; return; }
-    el.innerHTML = hits.map((m) => `<button data-id="${m.id}"><b>${ctx.esc(m.name)}</b><span>${ctx.esc(m.revier || 'ohne Revier')} · ${ctx.statusLabel(m.status)}${m.hasPdf ? '' : ' · PDF fehlt'}</span></button>`).join('');
-    el.querySelectorAll('button').forEach((b) => (b.onclick = () => { el.innerHTML = ''; ctx.openMap(b.dataset.id); }));
+    el.innerHTML = hits.map((m) => `<div class="ov-card">
+        <button class="ov-open" data-id="${m.id}"><b>${ctx.esc(m.name)}</b><span>${ctx.esc(m.revier || 'ohne Revier')} · ${ctx.statusLabel(m.status)}${m.hasPdf ? '' : ' · PDF fehlt'}</span></button>
+        <div class="ov-acts">
+          <button data-act="front" data-id="${m.id}">Nach vorn</button>
+          <button data-act="trans" data-id="${m.id}">${modeOf(m) === 'trans' ? 'Deckend' : 'Transparent'}</button>
+          <button data-act="hide" data-id="${m.id}">Ausblenden</button>
+        </div></div>`).join('') + '<button class="ov-close" aria-label="Schließen">✕</button>';
+    el.querySelectorAll('.ov-open').forEach((b) => (b.onclick = () => { el.innerHTML = ''; ctx.openMap(b.dataset.id); }));
+    el.querySelector('.ov-close').onclick = () => { el.innerHTML = ''; };
+    el.querySelectorAll('.ov-acts button').forEach((b) => (b.onclick = () => {
+      const id = b.dataset.id, m = maps.find((x) => x.id === id);
+      if (b.dataset.act === 'front') toFront(id);
+      if (b.dataset.act === 'trans') setMode(id, modeOf(m) === 'trans' ? 'normal' : 'trans');
+      if (b.dataset.act === 'hide') { setMode(id, 'hidden'); ctx.toast(`„${m.name}“ ausgeblendet. Über ◫ Ebenen wieder einblenden.`); }
+      showInfo(hits.filter((x) => modeOf(x) !== 'hidden'));
+    }));
   }
 
   function fitAll(animate) {
@@ -118,11 +144,13 @@ export function initOverview(ctx) {
         ctx.getThumb(m.id).then((b) => { if (b) { thumbUrls.set(m.id, URL.createObjectURL(b)); render(); } }).catch(() => {});
       }
     }
-    const ready = big.filter((m) => thumbUrls.get(m.id) && thumbUrls.get(m.id) !== 'loading');
+    const ready = big.filter((m) => thumbUrls.get(m.id) && thumbUrls.get(m.id) !== 'loading').sort(drawOrder);
     defs.selectAll('clipPath').data(ready, (m) => m.id).join((e) => e.append('clipPath').attr('id', (m) => `clip-${m.id}`).call((c) => c.append('path')))
       .select('path').attr('d', (m) => d3.line()(m.georef.footprint.map(scr)) + 'Z');
     gThumbs.selectAll('g.th').data(ready, (m) => m.id).join((e) => e.append('g').attr('class', 'th').call((g) => g.append('image')))
       .attr('clip-path', (m) => `url(#clip-${m.id})`)
+      .attr('opacity', (m) => (modeOf(m) === 'trans' ? 0.18 : 1))
+      .order()
       .select('image')
       .attr('href', (m) => thumbUrls.get(m.id))
       .attr('width', (m) => m.width).attr('height', (m) => m.height)
@@ -142,7 +170,11 @@ export function initOverview(ctx) {
 
   function render() {
     renderTiles();
-    const visible = maps.filter((m) => m.georef);
+    const visible = maps.filter((m) => m.georef && modeOf(m) !== 'hidden').sort(drawOrder);
+    const nHidden = maps.filter((m) => m.georef && modeOf(m) === 'hidden').length;
+    const hb = document.querySelector('#ov-hidden');
+    hb.hidden = !nHidden;
+    hb.textContent = `${nHidden} ausgeblendet`;
     const runningId = ctx.timerMapId();
     renderThumbs(visible);
     gFoot.selectAll('g.fp').data(visible, (m) => m.id).join((e) => {
@@ -150,12 +182,13 @@ export function initOverview(ctx) {
       g.append('path');
       g.append('circle');
       return g;
-    }).each(function (m) {
+    }).order().each(function (m) {
       const g = d3.select(this), small = screenSize(m) < 14;
       const col = STATUS_COLOR[m.status] || '#64748b';
       const hasThumb = thumbUrls.get(m.id) && thumbUrls.get(m.id) !== 'loading' && screenSize(m) > 90;
+      const trans = modeOf(m) === 'trans';
       g.select('path').attr('d', small ? null : d3.line()(m.georef.footprint.map(scr)) + 'Z')
-        .attr('fill', col).attr('fill-opacity', hasThumb ? 0.06 : 0.22)
+        .attr('fill', col).attr('fill-opacity', trans ? 0 : hasThumb ? 0.06 : 0.22).attr('stroke-opacity', trans ? 0.5 : 1)
         .attr('stroke', m.id === runningId ? '#2563eb' : col).attr('stroke-width', m.id === runningId ? 4 : 2.5)
         .attr('stroke-dasharray', m.hasPdf ? null : '6 4');
       const [cx, cy] = scr(centroid(m));
@@ -163,7 +196,7 @@ export function initOverview(ctx) {
         .attr('fill', col).attr('stroke', m.id === runningId ? '#2563eb' : '#fff').attr('stroke-width', 2);
     });
     gLabels.selectAll('text').data(visible.filter((m) => screenSize(m) > 70), (m) => m.id).join('text')
-      .attr('class', 'ov-label')
+      .attr('class', 'ov-label').attr('opacity', (m) => (modeOf(m) === 'trans' ? 0.5 : 1))
       .attr('x', (m) => scr(centroid(m))[0]).attr('y', (m) => scr(centroid(m))[1])
       .text((m) => m.name);
     renderPos();
@@ -189,6 +222,26 @@ export function initOverview(ctx) {
     render();
     ctx.toast(useTiles() ? 'Hintergrundkarte an (nur mit Internet)' : 'Hintergrundkarte aus');
   };
+  // Ebenen-Dialog
+  const openLayers = () => {
+    const list = maps.filter((m) => m.georef).sort((a, b) => (a.revier || '').localeCompare(b.revier || '', 'de') || a.name.localeCompare(b.name, 'de'));
+    document.querySelector('#layers-list').innerHTML = list.map((m) => `<li>
+        <span><b>${ctx.esc(m.name)}</b><small>${ctx.esc(m.revier || 'ohne Revier')}</small></span>
+        <select data-id="${m.id}">
+          <option value="normal" ${modeOf(m) === 'normal' ? 'selected' : ''}>Sichtbar</option>
+          <option value="trans" ${modeOf(m) === 'trans' ? 'selected' : ''}>Transparent</option>
+          <option value="hidden" ${modeOf(m) === 'hidden' ? 'selected' : ''}>Aus</option>
+        </select></li>`).join('') || '<li class="muted">Keine Karten im aktuellen Filter.</li>';
+    document.querySelectorAll('#layers-list select').forEach((s) => (s.onchange = () => setMode(s.dataset.id, s.value)));
+    document.querySelector('#dlg-layers').showModal();
+  };
+  document.querySelector('#ov-layers').onclick = openLayers;
+  document.querySelector('#ov-hidden').onclick = openLayers;
+  document.querySelector('#layers-reset').onclick = () => {
+    for (const m of maps) delete prefs[m.id];
+    savePrefs(); render(); openLayers();
+  };
+
   window.addEventListener('resize', () => document.querySelector('#view-overview').classList.contains('active') && render());
 
   return {
