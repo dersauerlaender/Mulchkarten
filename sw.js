@@ -1,5 +1,5 @@
 // Service Worker: Offline-Cache + Empfang geteilter Dateien (Android "Teilen → Mulchkarten")
-const VERSION = 'mk-1.2.3';
+const VERSION = 'mk-1.3.0';
 const ASSETS = [
   './',
   './index.html',
@@ -21,7 +21,10 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  // cache: 'reload' umgeht den HTTP-Cache (GitHub Pages: 10 min), sonst landen alte Dateien im neuen Cache
+  e.waitUntil(caches.open(VERSION)
+    .then((c) => c.addAll(ASSETS.map((u) => new Request(u, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {
@@ -50,6 +53,11 @@ self.addEventListener('fetch', (e) => {
     return;
   }
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
+  // Versionsdatei immer frisch vom Server
+  if (url.pathname.endsWith('/version.json')) {
+    e.respondWith(fetch(e.request, { cache: 'no-store' }));
+    return;
+  }
   e.respondWith((async () => {
     const cached = await caches.match(e.request, { ignoreSearch: e.request.mode === 'navigate' });
     if (cached) return cached;

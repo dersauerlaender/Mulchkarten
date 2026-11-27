@@ -167,3 +167,8 @@ dialog input:not([type=checkbox]), dialog select, dialog textarea { display: blo
 .ov-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-left: 4px; }
 .ov-attr { position: absolute; right: 4px; bottom: 4px; font-size: .7rem; background: #fffc; padding: 1px 5px; border-radius: 4px; }
 .ov-attr[hidden] { display: none; }
+
+.update-bar { display: flex; align-items: center; gap: 10px; margin: 4px 10px; padding: 10px 12px; border-radius: 12px; background: #ecfdf3; border: 1px solid #a7e3bf; font-weight: 600; }
+.update-bar[hidden] { display: none; }
+.update-bar span { flex: 1; }
+.update-bar button { border: 0; border-radius: 10px; background: var(--brand-2); color: #fff; font-weight: 700; padding: 10px 14px; }

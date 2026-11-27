@@ -35,6 +35,10 @@
     <label class="chk"><input type="checkbox" id="f-hidedone"> Fertige ausblenden</label>
   </div>
   <div id="gps-line" class="gps-line">GPS wird gesucht …</div>
+  <div id="update-bar" class="update-bar" hidden>
+    <span id="update-text">Neue Version verfügbar</span>
+    <button id="update-go" type="button">Aktualisieren</button>
+  </div>
 
   <ul id="map-list" class="map-list"></ul>
   <div id="empty" class="empty" hidden>
@@ -216,6 +220,7 @@
     <label>Aktuelle Saison <input name="season" list="dl-seasons" pattern="\d{2}/\d{2}"></label>
     <p class="muted" id="storage-info"></p>
     <button type="button" id="btn-paste" class="btn" style="width:100%">Arbeitsstand als Text einfügen</button>
+    <button type="button" id="btn-update" class="btn" style="width:100%;margin-top:8px">Nach Updates suchen</button>
     <div class="row end">
       <button value="wipe" class="btn danger" formnovalidate>Alle Daten löschen</button>
       <span class="grow"></span>

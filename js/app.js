@@ -4,7 +4,7 @@ import * as M from './model.js';
 import { makeTransform, inPolygon, distToPolygon, distMeters, bboxOverlap } from './georef.js';
 import { initOverview } from './overview.js';
 
-export const APP_VERSION = '1.2.3';
+export const APP_VERSION = '1.3.0';
 const d3 = window.d3;
 const $ = (s) => document.querySelector(s);
 const KINDS = ['erledigt', 'offen', 'hinweis'];
@@ -80,6 +80,7 @@ async function init() {
   bindDialogs();
   bindTimer();
   bindHistory();
+  bindUpdate();
   ov = initOverview({
     esc, toast, openMap, getThumb: M.getThumb,
     getPos: () => S.pos,
@@ -93,6 +94,59 @@ async function init() {
   startGps();
   await processShareInbox();
   if (!M.settings.user) openSettings(true);
+  setTimeout(() => checkUpdate(false), 3000);
+}
+
+// ---------- Updates ----------
+function cmpVersion(a, b) {
+  const pa = String(a).split('.').map(Number), pb = String(b).split('.').map(Number);
+  for (let i = 0; i < 3; i++) if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) - (pb[i] || 0);
+  return 0;
+}
+
+let remoteInfo = null;
+/** Fragt version.json beim Server ab. manual = vom Knopf ausgelöst (dann immer Rückmeldung). */
+async function checkUpdate(manual) {
+  if (!navigator.onLine) { if (manual) toast('Kein Internet – Update-Prüfung nicht möglich.'); return; }
+  try {
+    const res = await fetch(`version.json?t=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`Server antwortet ${res.status}`);
+    remoteInfo = await res.json();
+  } catch (err) {
+    if (manual) toast(`Update-Prüfung fehlgeschlagen: ${err.message}`);
+    return;
+  }
+  const newer = cmpVersion(remoteInfo.version, APP_VERSION) > 0;
+  $('#update-bar').hidden = !newer;
+  if (newer) $('#update-text').textContent = `Neue Version ${remoteInfo.version} verfügbar (du hast ${APP_VERSION})`;
+  if (manual) {
+    if (newer) { $('#dlg-settings').close('cancel'); toast(`Version ${remoteInfo.version} ist verfügbar – oben auf „Aktualisieren“ tippen.`); }
+    else toast(`Du hast die neueste Version (${APP_VERSION}).`);
+  }
+}
+
+/** Holt alle Dateien frisch vom Server, leert den App-Cache und lädt neu. Daten bleiben erhalten. */
+async function doUpdate() {
+  if (S.rec) { toast('Bitte zuerst die Track-Aufnahme beenden.'); return; }
+  busy('Neue Version wird geladen …');
+  try {
+    const assets = remoteInfo?.assets || [];
+    for (const u of assets) await fetch(u, { cache: 'reload' });   // HTTP-Cache auffrischen
+    for (const k of await caches.keys()) if (k !== 'share-inbox') await caches.delete(k);
+    const regs = await navigator.serviceWorker?.getRegistrations?.() || [];
+    for (const r of regs) await r.unregister();
+  } catch (err) {
+    busy(false);
+    toast(`Update fehlgeschlagen: ${err.message}`);
+    return;
+  }
+  location.replace(location.pathname + '?v=' + Date.now());
+}
+
+function bindUpdate() {
+  $('#update-go').onclick = doUpdate;
+  $('#btn-update').onclick = () => checkUpdate(true);
+  window.addEventListener('online', () => checkUpdate(false));
 }
 
 let ov;
