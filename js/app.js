@@ -4,7 +4,7 @@ import * as M from './model.js';
 import { makeTransform, inPolygon, distToPolygon, distMeters, bboxOverlap } from './georef.js';
 import { initOverview } from './overview.js';
 
-export const APP_VERSION = '1.2.0';
+export const APP_VERSION = '1.2.1';
 const d3 = window.d3;
 const $ = (s) => document.querySelector(s);
 const KINDS = ['erledigt', 'offen', 'hinweis'];
@@ -222,7 +222,7 @@ async function handleFiles(files) {
   for (const f of others) {
     busy('Arbeitsstand wird übernommen …');
     try {
-      const data = JSON.parse(await f.text());
+      const data = parseState(await f.text());
       const s = await M.mergeState(data);
       msgs.push(`Stand von ${data.exportedBy || '?'} (${fmtDate(data.exportedAt)} ${fmtTime(data.exportedAt)}) übernommen:` +
         ` ${s.mapsNew + s.mapsUpd} Karten aktualisiert, ${s.featNew} Linien neu, ${s.featUpd} geändert, ${s.featDel} gelöscht, ${s.timesNew} Zeiteinträge neu` +
@@ -236,6 +236,28 @@ async function handleFiles(files) {
   await refreshMaps();
   if (S.map) await reloadFeatures();
   toast(msgs.join('\n'), 7000);
+}
+
+/** Stand-Text lesen; tolerant gegenüber BOM und Text drumherum (z. B. aus Messenger kopiert). */
+function parseState(text) {
+  text = text.replace(/^\ufeff/, '').trim();
+  const a = text.indexOf('{'), b = text.lastIndexOf('}');
+  if (a < 0 || b < a) throw new SyntaxError('kein JSON');
+  return JSON.parse(text.slice(a, b + 1));
+}
+
+async function importStateText(text, label) {
+  busy('Arbeitsstand wird übernommen …');
+  try {
+    const data = parseState(text);
+    const s = await M.mergeState(data);
+    toast(`Stand von ${data.exportedBy || '?'} übernommen: ${s.mapsNew + s.mapsUpd} Karten aktualisiert, ${s.featNew} Linien neu, ${s.timesNew} Zeiteinträge neu` +
+      (s.missingPdf ? `\n${s.missingPdf} Karte(n) ohne PDF – bitte PDFs nachladen.` : ''), 7000);
+  } catch (err) {
+    toast(`✗ ${label}: ${err instanceof SyntaxError ? 'kein gültiger Mulchkarten-Stand' : err.message}`, 6000);
+  }
+  busy(false);
+  await refreshMaps();
 }
 
 async function processShareInbox() {
@@ -612,6 +634,18 @@ function bindDialogs() {
         await refreshMaps();
       }
     }
+  });
+
+  // Stand als Text einfügen
+  $('#btn-paste').onclick = () => {
+    $('#dlg-settings').close('cancel');
+    const f = $('#dlg-paste form');
+    f.txt.value = '';
+    $('#dlg-paste').showModal();
+  };
+  $('#dlg-paste').addEventListener('close', () => {
+    const v = $('#dlg-paste form').txt.value;
+    if ($('#dlg-paste').returnValue === 'ok' && v.trim()) importStateText(v, 'Eingefügter Text');
   });
 
   // Teilen

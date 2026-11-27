@@ -44,7 +44,7 @@
 
   <footer class="bottom">
     <label class="btn primary" for="file-input">＋ Importieren</label>
-    <input id="file-input" type="file" multiple accept=".pdf,application/pdf,.txt,text/plain,.json,application/json" hidden>
+    <input id="file-input" type="file" multiple hidden>
     <button id="btn-share" class="btn">⇪ Stand teilen</button>
   </footer>
 </section>
@@ -126,6 +126,18 @@
   </form>
 </dialog>
 
+<dialog id="dlg-paste">
+  <form method="dialog">
+    <h2>Arbeitsstand einfügen</h2>
+    <p class="muted">Die Stand-Datei (Mulchstand_….txt) in einem beliebigen Programm öffnen, alles markieren, kopieren und hier einfügen.</p>
+    <textarea name="txt" rows="8" placeholder='{"format":"mulchkarten-stand", …}'></textarea>
+    <div class="row end">
+      <button value="cancel" class="btn" formnovalidate>Abbrechen</button>
+      <button value="ok" class="btn primary">Übernehmen</button>
+    </div>
+  </form>
+</dialog>
+
 <dialog id="dlg-noshare">
   <form method="dialog">
     <h2>Teilen geht in diesem Browser nicht</h2>
@@ -203,6 +215,7 @@
     <label>Dein Name / Kürzel <input name="user" required placeholder="z. B. Christian"></label>
     <label>Aktuelle Saison <input name="season" list="dl-seasons" pattern="\d{2}/\d{2}"></label>
     <p class="muted" id="storage-info"></p>
+    <button type="button" id="btn-paste" class="btn" style="width:100%">Arbeitsstand als Text einfügen</button>
     <div class="row end">
       <button value="wipe" class="btn danger" formnovalidate>Alle Daten löschen</button>
       <span class="grow"></span>
