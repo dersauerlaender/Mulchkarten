@@ -172,3 +172,24 @@ dialog input:not([type=checkbox]), dialog select, dialog textarea { display: blo
 .update-bar[hidden] { display: none; }
 .update-bar span { flex: 1; }
 .update-bar button { border: 0; border-radius: 10px; background: var(--brand-2); color: #fff; font-weight: 700; padding: 10px 14px; }
+
+/* POIs & Punkt-Fenster */
+.poi circle { fill: #fff; stroke: #1d221f; stroke-width: 2px; filter: drop-shadow(0 1px 2px #0006); }
+.poi-icon { font-size: 16px; text-anchor: middle; }
+.poi-label { font-size: 12px; font-weight: 700; text-anchor: middle; paint-order: stroke; stroke: #fff; stroke-width: 3.5px; fill: #1d221f; }
+.pt-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px #0003; padding: 10px; }
+.pt-head { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px; }
+.pt-icon { font-size: 1.6rem; line-height: 1; }
+.pt-head b { display: block; }
+.pt-head small { color: var(--muted); display: block; }
+.pt-note { font-size: .9rem; margin: 2px 0 8px; white-space: pre-line; }
+.pt-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.pt-acts button { border: 1px solid var(--line); background: #f4f2ec; border-radius: 8px; padding: 10px 6px; font-weight: 650; font-size: .88rem; min-height: 44px; }
+.pt-acts button.go { background: #1a73e8; border-color: #1a73e8; color: #fff; }
+.map-pop { position: absolute; left: 8px; right: 66px; bottom: 8px; display: flex; flex-direction: column; gap: 6px; }
+.map-pop:empty { display: none; }
+.map-pop .ov-close, .ov-info .ov-close { align-self: flex-end; }
+#svg, #ov-svg { -webkit-touch-callout: none; }
+
+/* "hidden" muss immer gewinnen (sonst überschreibt display:flex der Buttons) */
+[hidden] { display: none !important; }

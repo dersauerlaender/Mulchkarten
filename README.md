@@ -49,6 +49,18 @@ Die Karte bekommt automatisch die eingestellte Saison. Revier, Name und Notiz tr
 
 Ein neuer Kollege ohne Karten setzt beim Teilen den Haken *Karten-PDFs mitschicken*. Kommt ein Stand für eine Karte an, deren PDF noch fehlt, erscheint sie als „PDF fehlt“. Sobald die PDF importiert ist, werden die Linien automatisch zugeordnet. Erkannt wird die Karte am Dateiinhalt, nicht am Dateinamen.
 
+## POIs und Navigation
+
+- **Punkt antippen** in der Übersichtskarte, oder **lange drücken** in einer Karte. Es öffnet sich ein Fenster mit Koordinaten und Entfernung sowie den Knöpfen:
+  - **🧭 Navigation**: Android fragt, mit welcher Navi-App (Google Maps, OsmAnd, Waze …) navigiert werden soll. Am iPhone öffnet sich Apple Karten.
+  - **Google Maps**: öffnet direkt die Routenplanung zum Punkt.
+  - **Teilen**: schickt einen Google-Maps-Link, z. B. per WhatsApp.
+  - **Als POI speichern**: legt einen dauerhaften Punkt an.
+- **＋ in der Übersicht** legt einen POI an der eigenen GPS-Position an (z. B. „hier ist der Parkplatz“).
+- **Arten**: Parkplatz, Wendemöglichkeit, Schranke/Sperre, Gefahr/Hindernis, Treffpunkt, Sonstiges. Dazu Name und Notiz.
+- POIs erscheinen in der Übersicht und in jeder Karte. Antippen zeigt Notiz, Navigation und Bearbeiten.
+- POIs gehen beim **Stand teilen** immer mit, unabhängig von der gewählten Saison. Auch Änderungen und Löschungen kommen bei den anderen an.
+
 ## Zeiterfassung
 
 - In der Kartenansicht **⏱ Zeit** antippen: Die Zeit läuft ab jetzt für diese Karte und damit auch für ihr Revier. Die blaue Leiste oben zeigt die laufende Zeit; mit „Stopp“ endet sie.

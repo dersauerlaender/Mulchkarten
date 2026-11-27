@@ -169,7 +169,8 @@ export async function buildExport({ season = 'alle' } = {}) {
   let maps = await getMaps();
   if (season !== 'alle') maps = maps.filter((m) => m.season === season);
   const ids = new Set(maps.map((m) => m.id));
-  const features = (await getFeatures({ includeDeleted: true })).filter((f) => season === 'alle' || ids.has(f.mapId));
+  // POIs gehören zu keiner Karte und gehen immer mit
+  const features = (await getFeatures({ includeDeleted: true })).filter((f) => season === 'alle' || f.type === 'poi' || ids.has(f.mapId));
   const cleanMap = ({ id, name, fileName, season, revier, note, status, doneAt, doneBy, addedAt, updatedAt, updatedBy, width, height, georef }) =>
     ({ id, name, fileName, season, revier, note, status, doneAt, doneBy, addedAt, updatedAt, updatedBy, width, height, georef });
   // nur abgeschlossene Zeiteinträge teilen

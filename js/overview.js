@@ -23,6 +23,7 @@ export function initOverview(ctx) {
   const gThumbs = svg.append('g');
   const gFoot = svg.append('g');
   const gLabels = svg.append('g').attr('pointer-events', 'none');
+  const gPoi = svg.append('g').attr('pointer-events', 'none');
   const gPos = svg.append('g').attr('pointer-events', 'none');
   const thumbUrls = new Map();   // mapId -> objectURL | 'loading'
   let zt = d3.zoomIdentity;
@@ -50,8 +51,15 @@ export function initOverview(ctx) {
   svg.call(zoom).on('dblclick.zoom', null);
 
   svg.on('click', (ev) => {
+    const el = document.querySelector('#ov-info');
+    if (el.innerHTML.trim()) { el.innerHTML = ''; return; }   // erster Tipp schließt nur das Fenster
     const [mx, my] = d3.pointer(ev, svg.node());
     const ll = fromWorld(zt.invert([mx, my]));
+    const poi = ctx.getPois().map((p) => {
+      const [x, y] = scr(p.coords[0]);
+      return { p, d: Math.hypot(x - mx, y - my) };
+    }).filter((x) => x.d < 24).sort((a, b) => a.d - b.d)[0]?.p;
+    if (poi) { showInfo([], poi.coords[0], poi); return; }
     const shown = maps.filter((m) => m.georef && modeOf(m) !== 'hidden');
     let hits = shown.filter((m) => inPolygon(ll, m.georef.footprint)).sort(drawOrder).reverse();
     if (!hits.length) {
@@ -61,7 +69,7 @@ export function initOverview(ctx) {
         return { m, d: Math.hypot(x - mx, y - my) };
       }).filter((x) => x.d < 26).sort((a, b) => a.d - b.d).map((x) => x.m).slice(0, 1);
     }
-    showInfo(hits);
+    showInfo(hits, ll, null);
   });
 
   function centroid(m) {
@@ -69,16 +77,17 @@ export function initOverview(ctx) {
     return [d3.mean(f, (p) => p[0]), d3.mean(f, (p) => p[1])];
   }
 
-  function showInfo(hits) {
+  function showInfo(hits, ll, poi) {
     const el = document.querySelector('#ov-info');
-    if (!hits.length) { el.innerHTML = ''; return; }
-    el.innerHTML = hits.map((m) => `<div class="ov-card">
+    if (!ll) { el.innerHTML = ''; return; }
+    el.innerHTML = '<button class="ov-close" aria-label="Schließen">✕</button>' + ctx.pointPopupHTML(ll, poi) + hits.map((m) => `<div class="ov-card">
         <button class="ov-open" data-id="${m.id}"><b>${ctx.esc(m.name)}</b><span>${ctx.esc(m.revier || 'ohne Revier')} · ${ctx.statusLabel(m.status)}${m.hasPdf ? '' : ' · PDF fehlt'}</span></button>
         <div class="ov-acts">
           <button data-act="front" data-id="${m.id}">Nach vorn</button>
           <button data-act="trans" data-id="${m.id}">${modeOf(m) === 'trans' ? 'Deckend' : 'Transparent'}</button>
           <button data-act="hide" data-id="${m.id}">Ausblenden</button>
-        </div></div>`).join('') + '<button class="ov-close" aria-label="Schließen">✕</button>';
+        </div></div>`).join('');
+    ctx.bindPointPopup(el, ll, poi);
     el.querySelectorAll('.ov-open').forEach((b) => (b.onclick = () => { el.innerHTML = ''; ctx.openMap(b.dataset.id); }));
     el.querySelector('.ov-close').onclick = () => { el.innerHTML = ''; };
     el.querySelectorAll('.ov-acts button').forEach((b) => (b.onclick = () => {
@@ -86,7 +95,7 @@ export function initOverview(ctx) {
       if (b.dataset.act === 'front') toFront(id);
       if (b.dataset.act === 'trans') setMode(id, modeOf(m) === 'trans' ? 'normal' : 'trans');
       if (b.dataset.act === 'hide') { setMode(id, 'hidden'); ctx.toast(`„${m.name}“ ausgeblendet. Über ◫ Ebenen wieder einblenden.`); }
-      showInfo(hits.filter((x) => modeOf(x) !== 'hidden'));
+      showInfo(hits.filter((x) => modeOf(x) !== 'hidden'), ll, poi);
     }));
   }
 
@@ -199,8 +208,22 @@ export function initOverview(ctx) {
       .attr('class', 'ov-label').attr('opacity', (m) => (modeOf(m) === 'trans' ? 0.5 : 1))
       .attr('x', (m) => scr(centroid(m))[0]).attr('y', (m) => scr(centroid(m))[1])
       .text((m) => m.name);
+    renderPois();
     renderPos();
     document.querySelector('#ov-attr').hidden = !useTiles();
+  }
+
+  function renderPois() {
+    const g = gPoi.selectAll('g.poi').data(ctx.getPois(), (p) => p.id).join((e) => {
+      const ge = e.append('g').attr('class', 'poi');
+      ge.append('circle').attr('r', 15);
+      ge.append('text').attr('class', 'poi-icon').attr('dy', '0.35em');
+      ge.append('text').attr('class', 'poi-label').attr('y', 28);
+      return ge;
+    });
+    g.attr('transform', (p) => `translate(${scr(p.coords[0])})`);
+    g.select('.poi-icon').text((p) => ctx.poiIcon(p));
+    g.select('.poi-label').text((p) => (zt.k > 2 ** 13 ? p.name || '' : ''));
   }
 
   function renderPos() {
@@ -212,6 +235,7 @@ export function initOverview(ctx) {
   }
 
   document.querySelector('#ov-fit').onclick = () => fitAll(true);
+  document.querySelector('#ov-addpoi').onclick = () => ctx.addPoiAtPos();
   document.querySelector('#ov-pos').onclick = () => {
     const p = ctx.getPos();
     if (!p) { ctx.toast('Noch keine GPS-Position.'); return; }

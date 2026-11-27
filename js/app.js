@@ -4,12 +4,22 @@ import * as M from './model.js';
 import { makeTransform, inPolygon, distToPolygon, distMeters, bboxOverlap } from './georef.js';
 import { initOverview } from './overview.js';
 
-export const APP_VERSION = '1.3.0';
+export const APP_VERSION = '1.4.0';
 const d3 = window.d3;
 const $ = (s) => document.querySelector(s);
 const KINDS = ['erledigt', 'offen', 'hinweis'];
 const KIND_LABEL = { erledigt: 'Erledigt', offen: 'Offen', hinweis: 'Hinweis' };
 const STATUS_LABEL = { offen: 'Offen', arbeit: 'In Arbeit', fertig: 'Fertig' };
+const POI_CATS = {
+  parken: { icon: '🅿️', label: 'Parkplatz / Abstellplatz' },
+  wenden: { icon: '↩️', label: 'Wendemöglichkeit' },
+  schranke: { icon: '🚧', label: 'Schranke / Sperre' },
+  gefahr: { icon: '⚠️', label: 'Gefahr / Hindernis' },
+  treff: { icon: '🤝', label: 'Treffpunkt' },
+  info: { icon: '📌', label: 'Sonstiges' },
+};
+const poiIcon = (p) => (POI_CATS[p.kind] || POI_CATS.info).icon;
+const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
 
 // ---------- Zustand ----------
 const S = {
@@ -83,6 +93,12 @@ async function init() {
   bindUpdate();
   ov = initOverview({
     esc, toast, openMap, getThumb: M.getThumb,
+    getPois: () => S.pois || [],
+    poiIcon, pointPopupHTML, bindPointPopup,
+    addPoiAtPos: () => {
+      if (!S.pos) { toast('Kein GPS – tippe stattdessen auf die Karte und wähle „Als POI speichern“.'); return; }
+      openPoiDialog([+S.pos.lat.toFixed(7), +S.pos.lon.toFixed(7)], null);
+    },
     getPos: () => S.pos,
     statusLabel: (s) => STATUS_LABEL[s] || s,
     timerMapId: () => S.timer?.mapId,
@@ -152,6 +168,7 @@ function bindUpdate() {
 let ov;
 async function refreshMaps() {
   S.maps = await M.getMaps();
+  S.pois = (await M.getFeatures()).filter((f) => f.type === 'poi');
   fillFilters();
   renderList();
   if ($('#view-overview').classList.contains('active')) ov.update(filteredMaps());
@@ -332,7 +349,7 @@ async function processShareInbox() {
 }
 
 // ---------- Kartenansicht ----------
-let svg, gZoom, gImg, gFeat, gLive, gPos;
+let svg, gZoom, gImg, gFeat, gLive, gPoi, gPos;
 
 function bindMap() {
   svg = d3.select('#svg');
@@ -340,7 +357,9 @@ function bindMap() {
   gImg = gZoom.append('g');
   gFeat = gZoom.append('g');
   gLive = gZoom.append('g');
+  gPoi = svg.append('g');
   gPos = svg.append('g').attr('pointer-events', 'none');
+  svg.on('contextmenu', (e) => e.preventDefault());
 
   S.zoom = d3.zoom()
     .filter((ev) => {
@@ -352,14 +371,22 @@ function bindMap() {
       gZoom.attr('transform', ev.transform);
       if (ev.sourceEvent && S.follow) setFollow(false);
       drawPos();
+      drawPois();
     });
   svg.call(S.zoom);
 
   // Freihand zeichnen
   const node = svg.node();
   const pointers = new Set();
+  // Langes Drücken: Punkt-Menü (Navigieren / POI)
+  let lp = null;
+  const cancelLp = () => { if (lp) { clearTimeout(lp.t); lp = null; } };
   node.addEventListener('pointerdown', (e) => {
     pointers.add(e.pointerId);
+    if (!S.draw && pointers.size === 1) {
+      const ll = toLatLon(e);
+      lp = { x: e.clientX, y: e.clientY, t: setTimeout(() => { lp = null; S.lpDone = Date.now(); navigator.vibrate?.(30); showMapPopup(ll, null); }, 550) };
+    } else cancelLp();
     if (!S.draw) return;
     if (pointers.size > 1) { cancelStroke(); return; }
     node.setPointerCapture(e.pointerId);
@@ -367,6 +394,7 @@ function bindMap() {
     renderLive();
   });
   node.addEventListener('pointermove', (e) => {
+    if (lp && Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > 10) cancelLp();
     if (!S.stroke || e.pointerId !== S.stroke.id) return;
     if (Math.hypot(e.clientX - S.stroke.last[0], e.clientY - S.stroke.last[1]) < 4) return;
     S.stroke.last = [e.clientX, e.clientY];
@@ -375,6 +403,7 @@ function bindMap() {
   });
   const end = async (e) => {
     pointers.delete(e.pointerId);
+    cancelLp();
     if (!S.stroke || e.pointerId !== S.stroke.id) return;
     const pts = S.stroke.pts;
     S.stroke = null;
@@ -386,11 +415,19 @@ function bindMap() {
     }
   };
   node.addEventListener('pointerup', end);
-  node.addEventListener('pointercancel', (e) => { pointers.delete(e.pointerId); cancelStroke(); });
+  node.addEventListener('pointercancel', (e) => { pointers.delete(e.pointerId); cancelLp(); cancelStroke(); });
 
   // Auswahl
   svg.on('click', (ev) => {
     if (S.draw) return;
+    if (Date.now() - (S.lpDone || 0) < 600) return;   // Klick nach langem Drücken ignorieren
+    const poiEl = ev.target.closest?.('[data-poi]');
+    if (poiEl) {
+      const p = S.features.find((f) => f.id === poiEl.dataset.poi);
+      if (p) { select(null); showMapPopup(p.coords[0], p); }
+      return;
+    }
+    if ($('#map-pop').innerHTML) { $('#map-pop').innerHTML = ''; return; }
     const hit = ev.target.closest?.('.hit');
     select(hit ? hit.dataset.id : null);
   });
@@ -456,6 +493,7 @@ async function openMap(id) {
   S.T = makeTransform(m.georef.coef);
   S.mPerPx = distMeters(S.T.toLatLon(0, 0), S.T.toLatLon(100, 0)) / 100;
   S.undo = [];
+  $('#map-pop').innerHTML = '';
   select(null);
   setDraw(false);
   $('#map-title').textContent = m.name;
@@ -544,7 +582,8 @@ async function reloadFeatures() {
 
 function renderFeatures() {
   const line = d3.line();
-  const data = S.features.slice().sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+  const data = S.features.filter((f) => f.type !== 'poi').sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+  drawPois();
   const g = gFeat.selectAll('g.f').data(data, (d) => d.id).join((enter) => {
     const ge = enter.append('g').attr('class', 'f');
     ge.append('path').attr('class', 'vis');
@@ -579,6 +618,110 @@ function select(id) {
 }
 
 // Position
+function drawPois() {
+  if (!S.map || !gPoi) return;
+  const pois = S.features.filter((f) => f.type === 'poi');
+  const g = gPoi.selectAll('g.poi').data(pois, (p) => p.id).join((e) => {
+    const ge = e.append('g').attr('class', 'poi').style('cursor', 'pointer');
+    ge.append('circle').attr('r', 17);
+    ge.append('text').attr('class', 'poi-icon').attr('dy', '0.35em');
+    ge.append('text').attr('class', 'poi-label').attr('y', 31);
+    return ge;
+  });
+  g.attr('data-poi', (p) => p.id)
+    .attr('transform', (p) => `translate(${S.zt.apply(toPx(p.coords[0]))})`);
+  g.select('.poi-icon').text(poiIcon);
+  g.select('.poi-label').text((p) => p.name || '');
+}
+
+// ---------- Punkt-Fenster: Navigation, Teilen, POI ----------
+const fmtLL = ([lat, lon]) => `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+const gmapsUrl = ([lat, lon]) => `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=driving`;
+
+function pointPopupHTML(ll, poi) {
+  const cat = poi ? POI_CATS[poi.kind] || POI_CATS.info : null;
+  const dist = S.pos ? ` · ${fmtDist(distMeters([S.pos.lat, S.pos.lon], ll))} Luftlinie` : '';
+  return `<div class="pt-card">
+    <div class="pt-head"><span class="pt-icon">${poi ? cat.icon : '📍'}</span><div>
+      <b>${poi ? esc(poi.name || cat.label) : 'Gewählter Punkt'}</b>
+      <small>${poi ? esc(cat.label) + ' · ' : ''}${fmtLL(ll)}${dist}</small>
+      ${poi ? `<small>von ${esc(poi.author || '?')}, ${fmtDate(poi.updatedAt || poi.createdAt)}</small>` : ''}
+    </div></div>
+    ${poi?.note ? `<div class="pt-note">${esc(poi.note)}</div>` : ''}
+    <div class="pt-acts">
+      <button class="go" data-pt="nav">🧭 Navigation</button>
+      <button data-pt="gmaps">Google Maps</button>
+      <button data-pt="share">Teilen</button>
+      <button data-pt="poi">${poi ? '✎ Bearbeiten' : '＋ Als POI speichern'}</button>
+    </div></div>`;
+}
+
+function bindPointPopup(el, ll, poi) {
+  const label = poi ? poi.name || (POI_CATS[poi.kind] || POI_CATS.info).label : 'Ziel';
+  el.querySelectorAll('[data-pt]').forEach((b) => (b.onclick = async (e) => {
+    e.stopPropagation();
+    const a = b.dataset.pt;
+    if (a === 'nav') {
+      // Android: geo-Link -> Auswahl der Navi-App (Google Maps, OsmAnd, Waze …); iPhone: Apple Karten
+      if (isIOS) window.open(`https://maps.apple.com/?daddr=${ll[0]},${ll[1]}&dirflg=d`, '_blank');
+      else location.href = `geo:${ll[0]},${ll[1]}?q=${ll[0]},${ll[1]}(${encodeURIComponent(label)})`;
+    } else if (a === 'gmaps') {
+      window.open(gmapsUrl(ll), '_blank');
+    } else if (a === 'share') {
+      const text = `${label}: ${gmapsUrl(ll)}`;
+      try {
+        if (navigator.share) await navigator.share({ title: label, text });
+        else { await navigator.clipboard.writeText(text); toast('Link kopiert.'); }
+      } catch (err) { if (err.name !== 'AbortError') toast('Teilen nicht möglich.'); }
+    } else if (a === 'poi') {
+      el.innerHTML = '';
+      openPoiDialog(ll, poi);
+    }
+  }));
+  el.querySelector('.ov-close')?.addEventListener('click', (e) => { e.stopPropagation(); el.innerHTML = ''; });
+}
+
+function showMapPopup(ll, poi) {
+  const el = $('#map-pop');
+  el.innerHTML = '<button class="ov-close" aria-label="Schließen">✕</button>' + pointPopupHTML(ll, poi);
+  bindPointPopup(el, ll, poi);
+}
+
+let poiEdit = null;
+function openPoiDialog(ll, poi) {
+  ll = ll.map((x) => +(+x).toFixed(7));
+  poiEdit = { ll, poi };
+  const f = $('#dlg-poi form');
+  f.cat.innerHTML = Object.entries(POI_CATS).map(([k, c]) => `<option value="${k}">${c.icon} ${c.label}</option>`).join('');
+  f.cat.value = poi?.kind || 'parken';
+  f.name.value = poi?.name || '';
+  f.note.value = poi?.note || '';
+  $('#poi-title').textContent = poi ? 'POI bearbeiten' : 'Neuer POI';
+  $('#poi-del').hidden = !poi;
+  $('#poi-meta').textContent = `${fmtLL(ll)}${poi ? ` · angelegt von ${poi.author || '?'}` : ''} · wird mit dem Arbeitsstand geteilt`;
+  $('#dlg-poi').showModal();
+}
+
+async function onPoiClose() {
+  const dlg = $('#dlg-poi'), f = dlg.querySelector('form'), v = dlg.returnValue;
+  const { ll, poi } = poiEdit || {};
+  poiEdit = null;
+  if (!ll) return;
+  if (v === 'delete' && poi) {
+    if (!confirm('POI für alle löschen? (wird beim nächsten Teilen übertragen)')) return;
+    await M.deleteFeature(poi.id);
+    toast('POI gelöscht.');
+  } else if (v === 'ok') {
+    const p = poi ? await db.get('features', poi.id) : M.newFeature({ type: 'poi', kind: f.cat.value, mapId: null, coords: [ll] });
+    Object.assign(p, { kind: f.cat.value, name: f.name.value.trim(), note: f.note.value.trim() });
+    await M.saveFeature(p);
+    toast(poi ? 'POI gespeichert.' : 'POI angelegt – geht beim nächsten „Stand teilen“ an die anderen.');
+  } else return;
+  S.pois = (await M.getFeatures()).filter((x) => x.type === 'poi');
+  if ($('#view-overview').classList.contains('active')) ov.update();
+  if (S.map) { $('#map-pop').innerHTML = ''; await reloadFeatures(); }
+}
+
 function drawPos() {
   gPos.selectAll('*').remove();
   if (!S.pos || !S.map) return;
@@ -965,6 +1108,7 @@ function bindTimer() {
     };
   });
   $('#dlg-switch').addEventListener('close', onSwitchClose);
+  $('#dlg-poi').addEventListener('close', onPoiClose);
   $('#dlg-time').addEventListener('close', onTimeEditClose);
 }
 
