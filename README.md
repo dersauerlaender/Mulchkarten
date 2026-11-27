@@ -90,3 +90,12 @@ Dateien ändern und in `sw.js` die Zeile `const VERSION = 'mk-…'` hochzählen.
 Reines HTML/JS ohne Build-Schritt. Bibliotheken liegen in `vendor/`:
 [pdf.js](https://github.com/mozilla/pdf.js) (Apache-2.0, rendert die Karte), [pdf-lib](https://github.com/Hopding/pdf-lib) (MIT, liest die Georeferenz `/VP → /Measure → GPTS/LPTS`), [d3](https://d3js.org) (ISC, Zoom/Pan per Touch, Linien).
 Code in `js/`: `georef.js` (Koordinaten), `pdfimport.js`, `model.js` (Daten, Import/Export), `app.js` (Oberfläche), `db.js` (IndexedDB). `sw.js` ist der Service Worker (Offline-Cache und Empfang geteilter Dateien).
+
+## Lizenz & Entstehung
+
+Der Code der App steht unter der **MIT-Lizenz** (siehe `LICENSE`): Jeder darf ihn nutzen, ändern und weitergeben, solange der Urheberhinweis erhalten bleibt.
+Die Bibliotheken in `vendor/` haben eigene freie Lizenzen (Apache-2.0, MIT, ISC), die vollständigen Texte stehen in `THIRD_PARTY_LICENSES.md`. In der App gibt es dazu ⚙ → „Über & Lizenzen“.
+
+Entstanden per *Vibe Coding* mit Claude (Anthropic).
+
+**Wichtig:** Keine Forstkarten (PDFs) oder Arbeitsstände in dieses öffentliche Repository hochladen. Die Karten gehören dem Herausgeber und bleiben nur auf den Handys.

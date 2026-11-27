@@ -4,7 +4,7 @@ import * as M from './model.js';
 import { makeTransform, inPolygon, distToPolygon, distMeters, bboxOverlap } from './georef.js';
 import { initOverview } from './overview.js';
 
-export const APP_VERSION = '1.4.0';
+export const APP_VERSION = '1.4.1';
 const d3 = window.d3;
 const $ = (s) => document.querySelector(s);
 const KINDS = ['erledigt', 'offen', 'hinweis'];
@@ -162,6 +162,11 @@ async function doUpdate() {
 function bindUpdate() {
   $('#update-go').onclick = doUpdate;
   $('#btn-update').onclick = () => checkUpdate(true);
+  $('#btn-about').onclick = () => {
+    $('#dlg-settings').close('cancel');
+    $('#about-version').textContent = APP_VERSION;
+    $('#dlg-about').showModal();
+  };
   window.addEventListener('online', () => checkUpdate(false));
 }
 

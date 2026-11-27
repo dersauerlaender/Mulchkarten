@@ -115,11 +115,40 @@
       <button id="ov-pos" class="fab static" title="Meine Position" aria-label="Meine Position">◎</button>
     </div>
     <div id="ov-legend" class="ov-legend"><i style="background:#64748b"></i>Offen <i style="background:#d97706"></i>In Arbeit <i style="background:#16a34a"></i>Fertig</div>
-    <div id="ov-attr" class="ov-attr">© OpenStreetMap-Mitwirkende</div>
+    <div id="ov-attr" class="ov-attr">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende</div>
   </div>
 </section>
 
 <!-- ===== Dialoge ===== -->
+<dialog id="dlg-about" class="wide">
+  <form method="dialog" class="about">
+    <h2>Über Mulchkarten</h2>
+    <p>Version <b id="about-version"></b> · Offline-Karten-App für die Wegepflege mit Geo-PDFs.</p>
+    <p>Entwickelt von dersauerlaender – per <i>Vibe Coding</i> zusammen mit Claude (KI von Anthropic). Code als Open Source unter der MIT-Lizenz: <a href="https://github.com/dersauerlaender/Mulchkarten" target="_blank" rel="noopener">github.com/dersauerlaender/Mulchkarten</a></p>
+
+    <h3>Datenschutz</h3>
+    <ul>
+      <li>Karten, Linien, Zeiten und POIs bleiben <b>nur auf diesem Handy</b>. Es gibt keinen Server und kein Konto.</li>
+      <li>Weitergegeben wird nur, was du selbst über „Stand teilen“ verschickst.</li>
+      <li>Der GPS-Standort wird nur in der App verwendet und nicht gespeichert, außer in Tracks, die du selbst aufnimmst.</li>
+      <li>Mit Internet lädt die Übersicht Kartenbilder von OpenStreetMap (dabei wird deine IP-Adresse an deren Server übertragen). Mit ▦ abschaltbar.</li>
+      <li>„Navigation“, „Google Maps“ und „Teilen“ geben die Koordinaten an die gewählte App weiter.</li>
+    </ul>
+
+    <h3>Verwendete Software</h3>
+    <table class="stats-table">
+      <tr><th>Bibliothek</th><th>Lizenz</th></tr>
+      <tr><td><a href="https://github.com/mozilla/pdf.js" target="_blank" rel="noopener">pdf.js</a> © Mozilla Foundation</td><td>Apache-2.0</td></tr>
+      <tr><td><a href="https://github.com/Hopding/pdf-lib" target="_blank" rel="noopener">pdf-lib</a> © Andrew Dillon<br><span class="muted small">enthält pako (MIT/Zlib), tslib (0BSD), standard-fonts (MIT), upng (MIT)</span></td><td>MIT</td></tr>
+      <tr><td><a href="https://d3js.org" target="_blank" rel="noopener">d3</a> © Mike Bostock</td><td>ISC</td></tr>
+      <tr><td>Kartenhintergrund © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap-Mitwirkende</a></td><td>ODbL</td></tr>
+    </table>
+    <p class="small"><a href="https://github.com/dersauerlaender/Mulchkarten/blob/main/THIRD_PARTY_LICENSES.md" target="_blank" rel="noopener">Vollständige Lizenztexte</a> · <a href="https://github.com/dersauerlaender/Mulchkarten/blob/main/LICENSE" target="_blank" rel="noopener">Lizenz der App (MIT)</a></p>
+    <p class="muted small">Ohne Gewähr: Karten und Positionen können ungenau sein. Die Forstkarten selbst gehören dem jeweiligen Herausgeber und sind nicht Teil dieser App.</p>
+    <div class="row end"><button value="ok" class="btn primary">Schließen</button></div>
+  </form>
+</dialog>
+
 <dialog id="dlg-poi">
   <form method="dialog">
     <h2 id="poi-title">POI</h2>
@@ -239,6 +268,7 @@
     <p class="muted" id="storage-info"></p>
     <button type="button" id="btn-paste" class="btn" style="width:100%">Arbeitsstand als Text einfügen</button>
     <button type="button" id="btn-update" class="btn" style="width:100%;margin-top:8px">Nach Updates suchen</button>
+    <button type="button" id="btn-about" class="btn" style="width:100%;margin-top:8px">Über &amp; Lizenzen</button>
     <div class="row end">
       <button value="wipe" class="btn danger" formnovalidate>Alle Daten löschen</button>
       <span class="grow"></span>
