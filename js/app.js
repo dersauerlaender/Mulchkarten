@@ -4,7 +4,7 @@ import * as M from './model.js';
 import { makeTransform, inPolygon, distToPolygon, distMeters, bboxOverlap } from './georef.js';
 import { initOverview } from './overview.js';
 
-export const APP_VERSION = '1.5.0';
+export const APP_VERSION = '1.5.1';
 const d3 = window.d3;
 const $ = (s) => document.querySelector(s);
 const KINDS = ['erledigt', 'offen', 'hinweis'];
@@ -63,9 +63,19 @@ const fmtDate = (iso) => (iso ? new Date(iso).toLocaleDateString('de-DE', { day:
 const fmtTime = (iso) => (iso ? new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '');
 
 let toastTimer;
-function toast(msg, ms = 3500) {
+/** Meldung oben; optional mit Aktion, z. B. { label: 'Wiederherstellen', fn } */
+function toast(msg, ms = 3500, action = null) {
   const t = $('#toast');
-  t.textContent = msg;
+  t.textContent = '';
+  const span = document.createElement('span');
+  span.textContent = msg;
+  t.append(span);
+  if (action) {
+    const b = document.createElement('button');
+    b.textContent = action.label;
+    b.onclick = () => { t.hidden = true; action.fn(); };
+    t.append(b);
+  }
   t.hidden = false;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => (t.hidden = true), ms);
@@ -487,6 +497,7 @@ function bindMap() {
     if (pts.length >= 2) {
       const f = await M.saveFeature(M.newFeature({ type: 'draw', kind: S.kind, mapId: S.map.id, coords: pts }));
       S.undo.push(f.id);
+      updateUndo();
       await reloadFeatures();
     }
   };
@@ -539,9 +550,8 @@ function bindMap() {
   }));
   $('#sel-del').onclick = async () => {
     if (!S.selected) return;
-    await M.deleteFeature(S.selected);
+    await removeWithRestore(S.selected, 'Linie gelöscht.');
     select(null);
-    await reloadFeatures();
   };
   $('#sel-close').onclick = () => select(null);
   window.addEventListener('resize', () => S.map && drawPos());
@@ -569,6 +579,7 @@ async function openMap(id) {
   S.T = makeTransform(m.georef.coef);
   S.mPerPx = distMeters(S.T.toLatLon(0, 0), S.T.toLatLon(100, 0)) / 100;
   S.undo = [];
+  updateUndo();
   $('#map-pop').innerHTML = '';
   select(null);
   setDraw(false);
@@ -855,9 +866,29 @@ function setKind(k) {
 }
 async function undo() {
   const id = S.undo.pop();
-  if (!id) { toast('Nichts zum Rückgängigmachen.'); return; }
+  updateUndo();
+  if (!id) return;
+  await removeWithRestore(id, 'Letzte Linie entfernt.');
+}
+
+function updateUndo() {
+  $('#t-undo').disabled = !S.undo.length;
+}
+
+/** Linie/Track löschen, mit "Wiederherstellen" in der Meldung */
+async function removeWithRestore(id, msg) {
+  const before = await db.get('features', id);
+  if (!before) return;
   await M.deleteFeature(id);
   await reloadFeatures();
+  toast(msg, 7000, {
+    label: 'Wiederherstellen',
+    fn: async () => {
+      await M.saveFeature({ ...before, deleted: false });
+      if (before.author === M.settings.user && S.map) { S.undo.push(id); updateUndo(); }
+      await reloadFeatures();
+    },
+  });
 }
 
 // Track-Aufnahme
@@ -898,6 +929,7 @@ async function stopRec() {
   if (r.coords.length < 2) { toast('Track zu kurz – nicht gespeichert.'); return; }
   const f = await M.saveFeature(M.newFeature({ type: 'track', kind: r.kind, mapId: r.mapId, coords: r.coords, startedAt: r.startedAt, endedAt: M.now() }));
   S.undo.push(f.id);
+  updateUndo();
   const m = await M.getMap(r.mapId);
   if (m?.status === 'offen') {
     const up = await M.updateMap(r.mapId, { status: 'arbeit' });
