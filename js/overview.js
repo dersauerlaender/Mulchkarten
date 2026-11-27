@@ -257,7 +257,7 @@ export function initOverview(ctx) {
     const out = [];
     for (const f of ctx.getLines()) {
       const md = mode[f.mapId];
-      if (md === 'hidden') continue;
+      if (md === undefined || md === 'hidden') continue;   // Karte nicht im Filter (z. B. andere Saison) oder ausgeblendet
       // Grob-Test über die Bounding-Box, ob im Bild
       if (f.bbox) {
         const [x0, y1] = scr([f.bbox[0], f.bbox[1]]), [x1, y0] = scr([f.bbox[2], f.bbox[3]]);

@@ -245,3 +245,7 @@ dialog h2:focus { outline: none; }
 #view-overview .ov-info { top: auto; bottom: 8px; right: 8px; max-height: 62%; }
 body.ov-popup[data-view="view-overview"] .fab-main { display: none; }
 body.ov-popup .ov-legend, body.ov-popup .ov-attr, body.ov-popup .ov-hidden { display: none; }
+
+.ov-season { position: absolute; left: 8px; top: 10px; padding: 9px 10px; border-radius: 10px; border: 1px solid var(--line);
+  background: #fffffff2; font-weight: 650; box-shadow: 0 1px 4px #0002; z-index: 2; }
+body.ov-popup .ov-season { display: none; }

@@ -5,7 +5,7 @@ import { makeTransform, inPolygon, distToPolygon, distMeters, bboxOverlap } from
 import { initOverview } from './overview.js';
 import { oneFingerZoom } from './gestures.js';
 
-export const APP_VERSION = '1.8.0';
+export const APP_VERSION = '1.8.1';
 const d3 = window.d3;
 const $ = (s) => document.querySelector(s);
 const KINDS = ['erledigt', 'offen', 'hinweis'];
@@ -97,7 +97,7 @@ const activeView = () => document.querySelector('.view.active')?.id || 'view-lis
 
 function showMain(id) {
   showView(id);
-  if (id === 'view-overview') ov.show(filteredMaps());
+  if (id === 'view-overview') { fillOvSeason(); ov.show(filteredMaps()); }
   else if (id === 'view-times') openTimesView();
   else renderList();
 }
@@ -114,6 +114,13 @@ function navTo(id) {
   if (cur === 'view-list') history.pushState({ v: id }, '');
   else history.replaceState({ v: id }, '');
   showMain(id);
+}
+
+// Saison-Auswahl der Übersicht (gekoppelt an den Filter der Kartenliste)
+function fillOvSeason() {
+  const sel = $('#ov-season'), src = $('#f-season');
+  sel.innerHTML = src.innerHTML;
+  sel.value = src.value;
 }
 
 // ---------- Aktionsknopf (FAB-Menü) ----------
@@ -158,6 +165,12 @@ function bindNav() {
   $('#fab').onclick = () => (fabOpen() ? closeFab() : openFab());
   $('#fab-scrim').onclick = closeFab;
   document.querySelectorAll('.btn-settings').forEach((b) => (b.onclick = () => openSettings(false)));
+  $('#ov-season').onchange = () => {
+    $('#f-season').value = $('#ov-season').value;
+    renderList();                       // speichert den Filter
+    ov.update(filteredMaps());
+    ov.fitAll(true);
+  };
 }
 
 // ---------- Start ----------
