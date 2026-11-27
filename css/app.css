@@ -237,3 +237,11 @@ body[data-view="view-map"] .navbar, body[data-view="view-map"] .fab-main { displ
 .toast button { border: 0; background: none; color: #8ce0a6; font-weight: 800; font-size: .95rem; padding: 6px 4px; white-space: nowrap; }
 
 dialog h2:focus { outline: none; }
+
+.ov-acts { flex-wrap: wrap; }
+.ov-acts button.primary { flex-basis: 100%; background: var(--brand-2); color: #fff; border-color: var(--brand-2); font-size: .92rem; }
+
+/* Punkt-Fenster der Übersicht unten (Karte darüber bleibt sichtbar) */
+#view-overview .ov-info { top: auto; bottom: 8px; right: 8px; max-height: 62%; }
+body.ov-popup .fab-main { display: none; }
+body.ov-popup .ov-legend, body.ov-popup .ov-attr, body.ov-popup .ov-hidden { display: none; }

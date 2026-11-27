@@ -24,7 +24,9 @@ export function initOverview(ctx) {
   const gFoot = svg.append('g');
   const gLabels = svg.append('g').attr('pointer-events', 'none');
   const gPoi = svg.append('g').attr('pointer-events', 'none');
+  const gPick = svg.append('g').attr('pointer-events', 'none');
   const gPos = svg.append('g').attr('pointer-events', 'none');
+  let pick = null;   // angetippte Stelle (Stecknadel), solange das Fenster offen ist
   const thumbUrls = new Map();   // mapId -> objectURL | 'loading'
   let zt = d3.zoomIdentity;
   let fitted = false;
@@ -80,18 +82,23 @@ export function initOverview(ctx) {
   function showInfo(hits, ll, poi) {
     const el = document.querySelector('#ov-info');
     if (!ll) { el.innerHTML = ''; return; }
+    pick = poi ? null : ll;
+    renderPick();
     el.innerHTML = '<button class="ov-close" aria-label="Schließen">✕</button>' + ctx.pointPopupHTML(ll, poi) + hits.map((m) => `<div class="ov-card">
         <button class="ov-open" data-id="${m.id}"><b>${ctx.esc(m.name)}</b><span>${ctx.esc(m.revier || 'ohne Revier')} · ${ctx.statusLabel(m.status)}${m.hasPdf ? '' : ' · PDF fehlt'}</span></button>
         <div class="ov-acts">
+          ${m.hasPdf ? `<button data-act="open" data-id="${m.id}" class="primary">Karte öffnen</button>` : ''}
           <button data-act="front" data-id="${m.id}">Nach vorn</button>
           <button data-act="trans" data-id="${m.id}">${modeOf(m) === 'trans' ? 'Deckend' : 'Transparent'}</button>
           <button data-act="hide" data-id="${m.id}">Ausblenden</button>
         </div></div>`).join('');
     ctx.bindPointPopup(el, ll, poi);
+    requestAnimationFrame(() => keepVisible(ll, el));
     el.querySelectorAll('.ov-open').forEach((b) => (b.onclick = () => { el.innerHTML = ''; ctx.openMap(b.dataset.id); }));
     el.querySelector('.ov-close').onclick = () => { el.innerHTML = ''; };
     el.querySelectorAll('.ov-acts button').forEach((b) => (b.onclick = () => {
       const id = b.dataset.id, m = maps.find((x) => x.id === id);
+      if (b.dataset.act === 'open') { el.innerHTML = ''; ctx.openMap(id); return; }
       if (b.dataset.act === 'front') toFront(id);
       if (b.dataset.act === 'trans') setMode(id, modeOf(m) === 'trans' ? 'normal' : 'trans');
       if (b.dataset.act === 'hide') { setMode(id, 'hidden'); ctx.toast(`„${m.name}“ ausgeblendet. Über ◫ Ebenen wieder einblenden.`); }
@@ -209,6 +216,7 @@ export function initOverview(ctx) {
       .attr('x', (m) => scr(centroid(m))[0]).attr('y', (m) => scr(centroid(m))[1])
       .text((m) => m.name);
     renderPois();
+    renderPick();
     renderPos();
     document.querySelector('#ov-attr').hidden = !useTiles();
   }
@@ -225,6 +233,29 @@ export function initOverview(ctx) {
     g.select('.poi-icon').text((p) => ctx.poiIcon(p));
     g.select('.poi-label').text((p) => (zt.k > 2 ** 13 ? p.name || '' : ''));
   }
+
+  /** Karte so verschieben, dass der Punkt sichtbar über dem Fenster liegt */
+  function keepVisible(ll, el) {
+    const sr = svg.node().getBoundingClientRect(), pr = el.getBoundingClientRect();
+    const free = pr.top - sr.top;                 // sichtbare Höhe über dem Fenster
+    const [x, y] = scr(ll);
+    const dy = y > free - 45 || y < 45 ? free / 2 - y : 0;
+    const dx = x < 30 || x > sr.width - 30 ? sr.width / 2 - x : 0;
+    if (dx || dy) svg.transition().duration(300).call(zoom.translateBy, dx / zt.k, dy / zt.k);
+  }
+
+  function renderPick() {
+    gPick.selectAll('*').remove();
+    if (!pick) return;
+    const [x, y] = scr(pick);
+    ctx.drawPin(gPick, x, y);
+  }
+  // Fenster zu -> Stecknadel weg
+  new MutationObserver(() => {
+    const open = !!document.querySelector('#ov-info').innerHTML.trim();
+    document.body.classList.toggle('ov-popup', open);
+    if (!open && pick) { pick = null; renderPick(); }
+  }).observe(document.querySelector('#ov-info'), { childList: true });
 
   function renderPos() {
     gPos.selectAll('*').remove();

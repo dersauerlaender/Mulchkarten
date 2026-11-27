@@ -4,7 +4,7 @@ import * as M from './model.js';
 import { makeTransform, inPolygon, distToPolygon, distMeters, bboxOverlap } from './georef.js';
 import { initOverview } from './overview.js';
 
-export const APP_VERSION = '1.5.2';
+export const APP_VERSION = '1.5.4';
 const d3 = window.d3;
 const $ = (s) => document.querySelector(s);
 const KINDS = ['erledigt', 'offen', 'hinweis'];
@@ -177,7 +177,7 @@ async function init() {
   ov = initOverview({
     esc, toast, openMap, getThumb: M.getThumb,
     getPois: () => S.pois || [],
-    poiIcon, pointPopupHTML, bindPointPopup,
+    poiIcon, pointPopupHTML, bindPointPopup, drawPin,
     addPoiAtPos: () => {
       if (!S.pos) { toast('Kein GPS – tippe stattdessen auf die Karte und wähle „Als POI speichern“.'); return; }
       openPoiDialog([+S.pos.lat.toFixed(7), +S.pos.lon.toFixed(7)], null);
@@ -435,7 +435,7 @@ async function processShareInbox() {
 }
 
 // ---------- Kartenansicht ----------
-let svg, gZoom, gImg, gFeat, gLive, gPoi, gPos;
+let svg, gZoom, gImg, gFeat, gLive, gPoi, gPick, gPos;
 
 function bindMap() {
   svg = d3.select('#svg');
@@ -444,7 +444,10 @@ function bindMap() {
   gFeat = gZoom.append('g');
   gLive = gZoom.append('g');
   gPoi = svg.append('g');
+  gPick = svg.append('g').attr('pointer-events', 'none');
   gPos = svg.append('g').attr('pointer-events', 'none');
+  new MutationObserver(() => { if (!$('#map-pop').innerHTML && S.pick) { S.pick = null; drawPick(); } })
+    .observe($('#map-pop'), { childList: true });
   svg.on('contextmenu', (e) => e.preventDefault());
 
   S.zoom = d3.zoom()
@@ -458,6 +461,7 @@ function bindMap() {
       if (ev.sourceEvent && S.follow) setFollow(false);
       drawPos();
       drawPois();
+      drawPick();
     });
   svg.call(S.zoom);
 
@@ -768,10 +772,37 @@ function bindPointPopup(el, ll, poi) {
   el.querySelector('.ov-close')?.addEventListener('click', (e) => { e.stopPropagation(); el.innerHTML = ''; });
 }
 
+/** Stecknadel an angetippter Stelle; Spitze = genaue Position */
+function drawPin(g, x, y) {
+  g.append('ellipse').attr('cx', x).attr('cy', y).attr('rx', 6).attr('ry', 2.5).attr('fill', '#0005');
+  g.append('path').attr('d', 'M0,0 C-3,-9 -13,-14 -13,-25 A13,13 0 1 1 13,-25 C13,-14 3,-9 0,0 Z').attr('transform', `translate(${x},${y})`)
+    .attr('fill', '#dc2626').attr('stroke', '#fff').attr('stroke-width', 2.5);
+  g.append('circle').attr('cx', x).attr('cy', y - 25).attr('r', 4.5).attr('fill', '#fff');
+}
+
+function drawPick() {
+  if (!gPick) return;
+  gPick.selectAll('*').remove();
+  if (!S.pick || !S.map) return;
+  const [x, y] = S.zt.apply(toPx(S.pick));
+  drawPin(gPick, x, y);
+}
+
 function showMapPopup(ll, poi) {
+  S.pick = poi ? null : ll;
+  drawPick();
   const el = $('#map-pop');
   el.innerHTML = '<button class="ov-close" aria-label="Schließen">✕</button>' + pointPopupHTML(ll, poi);
   bindPointPopup(el, ll, poi);
+  // Punkt sichtbar über dem Fenster halten
+  requestAnimationFrame(() => {
+    const sr = svg.node().getBoundingClientRect(), pr = el.getBoundingClientRect();
+    const free = pr.top - sr.top;
+    const [x, y] = S.zt.apply(toPx(ll));
+    const dy = y > free - 45 || y < 45 ? free / 2 - y : 0;
+    const dx = x < 30 || x > sr.width - 30 ? sr.width / 2 - x : 0;
+    if (dx || dy) { setFollow(false); svg.transition().duration(300).call(S.zoom.translateBy, dx / S.zt.k, dy / S.zt.k); }
+  });
 }
 
 let poiEdit = null;
