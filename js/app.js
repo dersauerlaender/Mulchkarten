@@ -5,7 +5,7 @@ import { makeTransform, inPolygon, distToPolygon, distMeters, bboxOverlap } from
 import { initOverview } from './overview.js';
 import { oneFingerZoom } from './gestures.js';
 
-export const APP_VERSION = '1.8.1';
+export const APP_VERSION = '1.8.2';
 const d3 = window.d3;
 const $ = (s) => document.querySelector(s);
 const KINDS = ['erledigt', 'offen', 'hinweis'];
@@ -474,6 +474,7 @@ async function processShareInbox() {
 
 // ---------- Kartenansicht ----------
 let svg, gZoom, gImg, gFeat, gLive, gPoi, gPick, gPos;
+let gest = null;   // laufende Zoom-/Verschiebe-Geste in der Kartenansicht
 
 function bindMap() {
   svg = d3.select('#svg');
@@ -493,13 +494,24 @@ function bindMap() {
       if (S.draw) return ev.type === 'wheel' || (ev.touches && ev.touches.length >= 2);
       return (!ev.ctrlKey || ev.type === 'wheel') && !ev.button;
     })
+    .on('start', (ev) => { gest = { k0: S.zt.k, user: !!ev.sourceEvent, zoomed: false }; })
     .on('zoom', (ev) => {
       S.zt = ev.transform;
       gZoom.attr('transform', ev.transform);
-      if (ev.sourceEvent && S.follow) setFollow(false);
+      // Mitführen: Zoomen behält es bei, nur reines Verschieben beendet es (wie Google Maps)
+      if (ev.sourceEvent && S.follow && gest) {
+        gest.user = true;
+        if (Math.abs(ev.transform.k - gest.k0) > 1e-9) gest.zoomed = true;
+        else if (!gest.zoomed) setFollow(false);
+      }
       drawPos();
       drawPois();
       drawPick();
+    })
+    .on('end', () => {
+      // nach einer Zoom-Geste wieder auf die Position zentrieren
+      if (gest?.user && gest.zoomed && S.follow) centerOnPos(true, S.zt.k);
+      gest = null;
     });
   svg.call(S.zoom);
   // Doppeltippen / Doppeltippen + Ziehen = Ein-Finger-Zoom
