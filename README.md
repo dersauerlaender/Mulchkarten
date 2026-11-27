@@ -1,0 +1,78 @@
+# Mulchkarten
+
+Offline-Web-App (PWA) für Geo-PDF-Karten (z. B. ArcGIS-Exporte von Hessen Forst):
+
+- **Kartenliste nach GPS**: Karte, auf der man steht, ganz oben („📍 Hier“), alle anderen nach Entfernung
+- **GPS-Position** auf der Karte, Hinweis „x m außerhalb“ und Sprung zur Nachbarkarte
+- **Malen** (Freihand) und **GPS-Tracks aufnehmen** in drei Farben: Erledigt (grün), Offen (rot), Hinweis (gelb, gestrichelt)
+- Linien antippen → Farbe ändern oder löschen; „Zurück“ macht die letzte eigene Linie rückgängig
+- **Status je Karte**: Offen / In Arbeit / Fertig (mit Datum + Name). Ein Track setzt „Offen“ automatisch auf „In Arbeit“
+- **Saison** (Juli–Juni, z. B. 26/27) und optionales **Revier** je Karte, Filter in der Liste
+- **Arbeitsstand teilen** über WhatsApp (kleine .txt-Datei), Import beim Kollegen führt die Stände zusammen
+- **Zeiterfassung pro Karte** mit Zählstellen-Wechsel (siehe unten), Zeiten nachtragen und korrigieren
+- **Auswertung**: Stunden je Revier, Karte und Person, km aus den Tracks, Export als CSV
+- **Übersichtskarte** (🗺): alle Kartenrahmen nach Status gefärbt, mit den PDF-Karten als Vorschaubild (auch offline), dazu OpenStreetMap als Hintergrund, wenn Internet da ist (▦ schaltet ihn ab). Antippen öffnet die Karte.
+- **⤢ Ganze Karte**: holt die Ansicht zurück auf die komplette Karte. „Position“ springt nicht mehr ins Leere, wenn man mehr als 3 km entfernt ist.
+
+Alle Daten liegen nur auf dem jeweiligen Handy (IndexedDB). Es gibt keinen Server und kein Konto.
+
+## Installation (einmalig)
+
+Die App muss über **HTTPS** erreichbar sein (wegen GPS und Offline-Funktion). Am einfachsten geht das kostenlos so:
+
+**GitHub Pages**
+1. Auf github.com ein neues öffentliches Repository anlegen, z. B. `mulchkarten`.
+2. Den Inhalt dieses Ordners hochladen (*Add file → Upload files*, alle Dateien und Ordner hineinziehen).
+3. *Settings → Pages → Branch: main / root → Save*.
+4. Nach etwa einer Minute ist die App unter `https://<name>.github.io/mulchkarten/` erreichbar.
+
+**Alternativ Netlify Drop**: app.netlify.com/drop öffnen und den Ordner hineinziehen. Mit einem kostenlosen Konto bleibt die Seite dauerhaft online.
+
+Danach auf jedem Handy die Adresse öffnen und die App auf den Startbildschirm legen:
+- **Android (Chrome)**: Menü ⋮ → „App installieren“ / „Zum Startbildschirm hinzufügen“
+- **iPhone (Safari)**: Teilen-Symbol → „Zum Home-Bildschirm“
+
+Erst danach erscheint „Mulchkarten“ auf Android im WhatsApp-Teilen-Menü, und der Speicher ist vor dem Aufräumen durch den Browser geschützt.
+
+## Arbeitsablauf
+
+**Karten bekommen (WhatsApp)**
+- Android: PDF in WhatsApp lange drücken → Teilen → *Mulchkarten*
+- iPhone: PDF öffnen → Teilen → *In Dateien sichern*, dann in der App *＋ Importieren*
+
+Die Karte bekommt automatisch die eingestellte Saison. Revier, Name und Notiz trägt man über ✎ in der Kartenansicht ein.
+
+**Arbeitsstand weitergeben**
+1. Nach der Schicht *⇪ Stand teilen* → Saison wählen → *Teilen* → WhatsApp-Gruppe auswählen.
+2. Der Nächste öffnet die Datei genauso wie eine PDF (Android: Teilen → Mulchkarten, iPhone: sichern + Importieren).
+3. Beim Zusammenführen gewinnt pro Karte und pro Linie die neueste Änderung. Gelöschte Linien werden auch beim Kollegen gelöscht. Ein Stand kann gefahrlos mehrfach importiert werden.
+
+Ein neuer Kollege ohne Karten setzt beim Teilen den Haken *Karten-PDFs mitschicken*. Kommt ein Stand für eine Karte an, deren PDF noch fehlt, erscheint sie als „PDF fehlt“. Sobald die PDF importiert ist, werden die Linien automatisch zugeordnet. Erkannt wird die Karte am Dateiinhalt, nicht am Dateinamen.
+
+## Zeiterfassung
+
+- In der Kartenansicht **⏱ Zeit** antippen: Die Zeit läuft ab jetzt für diese Karte und damit auch für ihr Revier. Die blaue Leiste oben zeigt die laufende Zeit; mit „Stopp“ endet sie.
+- Ist man auf einer anderen Karte als der laufenden Zählstelle, steht auf dem Knopf „Wechseln“.
+- **Automatische Abfrage**: Fährt man bei laufender Zeit auf eine andere Karte der aktuellen Saison, die nicht „Fertig“ ist, und bleibt etwa 15 Sekunden dort, fragt die App:
+  - **Wechseln mit Anfahrt**: Die neue Karte zählt ab dem Moment, in dem man die alte verlassen hat. Die Anfahrt gehört also zum Ziel. Typischer Fall: auf Karte A parken, zu Karte B fahren.
+  - **Ab jetzt**: Die Anfahrt bleibt bei der alten Karte.
+  - **Nicht wechseln**: Die Fahrt gehört zur alten Karte, z. B. bei der Rückfahrt zum Parkplatz. Für diese Karte fragt die App dann 30 Minuten nicht mehr.
+- Die Abfrage kommt nur, wenn die App offen ist. Hatte man das Handy weggelegt, erscheint sie beim nächsten Öffnen. „Mit Anfahrt“ rechnet trotzdem ab dem richtigen Zeitpunkt, weil sich die App den letzten Moment auf der alten Karte merkt.
+- In der Auswertung (⏱ oben in der Liste) lassen sich Einträge mit ✎ korrigieren oder löschen. Vergessene Zeiten trägt man über „＋ Zeit nachtragen“ nach.
+- Beim Teilen des Arbeitsstands gehen die abgeschlossenen Zeiteinträge mit. Jeder Eintrag trägt den Namen der Person.
+
+## Grenzen
+
+- **Track-Aufnahme nur bei eingeschaltetem Bildschirm.** Web-Apps bekommen kein GPS, solange der Bildschirm aus ist oder die App im Hintergrund läuft. Die App hält den Bildschirm während der Aufnahme wach (Wake Lock). Wird sie trotzdem beendet, wird der Track beim nächsten Start gespeichert.
+- Die Karte wird beim Import einmal als Bild mit bis zu 4096 px Kantenlänge gespeichert. Bei sehr großen Karten (A0) wird sie beim starken Hineinzoomen unscharf.
+- Unterstützt werden Geo-PDFs nach ISO-Standard (ArcGIS, QGIS, Avenza-Exporte). Das alte TerraGo-Format wird nicht erkannt.
+
+## Updates einspielen
+
+Dateien ändern und in `sw.js` die Zeile `const VERSION = 'mk-…'` hochzählen. Dann holen sich die Handys beim nächsten Öffnen mit Netz die neue Version. Die Daten bleiben erhalten.
+
+## Technik
+
+Reines HTML/JS ohne Build-Schritt. Bibliotheken liegen in `vendor/`:
+[pdf.js](https://github.com/mozilla/pdf.js) (Apache-2.0, rendert die Karte), [pdf-lib](https://github.com/Hopding/pdf-lib) (MIT, liest die Georeferenz `/VP → /Measure → GPTS/LPTS`), [d3](https://d3js.org) (ISC, Zoom/Pan per Touch, Linien).
+Code in `js/`: `georef.js` (Koordinaten), `pdfimport.js`, `model.js` (Daten, Import/Export), `app.js` (Oberfläche), `db.js` (IndexedDB). `sw.js` ist der Service Worker (Offline-Cache und Empfang geteilter Dateien).

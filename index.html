@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#1f3d2b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Mulchkarten">
+  <title>Mulchkarten</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="stylesheet" href="css/app.css">
+  <script src="vendor/d3.min.js"></script>
+  <script src="vendor/pdf-lib.min.js"></script>
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+
+<!-- ===== Kartenliste ===== -->
+<section id="view-list" class="view active">
+  <header class="bar">
+    <h1>Mulchkarten</h1>
+    <button id="btn-ov" class="icon" title="Übersichtskarte" aria-label="Übersichtskarte">🗺</button>
+    <button id="btn-stats" class="icon" title="Auswertung" aria-label="Auswertung">⏱</button>
+    <button id="btn-settings" class="icon" title="Einstellungen" aria-label="Einstellungen">⚙</button>
+  </header>
+  <div class="timer-bar" hidden></div>
+
+  <div class="filters">
+    <select id="f-season" aria-label="Saison"></select>
+    <select id="f-revier" aria-label="Revier"></select>
+    <label class="chk"><input type="checkbox" id="f-hidedone"> Fertige ausblenden</label>
+  </div>
+  <div id="gps-line" class="gps-line">GPS wird gesucht …</div>
+
+  <ul id="map-list" class="map-list"></ul>
+  <div id="empty" class="empty" hidden>
+    <p>Noch keine Karten.</p>
+    <p>Geo-PDFs aus WhatsApp hier importieren (oder in WhatsApp „Teilen → Mulchkarten“ wählen).</p>
+  </div>
+
+  <footer class="bottom">
+    <label class="btn primary" for="file-input">＋ Importieren</label>
+    <input id="file-input" type="file" multiple accept=".pdf,application/pdf,.txt,text/plain,.json,application/json" hidden>
+    <button id="btn-share" class="btn">⇪ Stand teilen</button>
+  </footer>
+</section>
+
+<!-- ===== Kartenansicht ===== -->
+<section id="view-map" class="view">
+  <header class="bar">
+    <button id="btn-back" class="icon" aria-label="Zurück">‹</button>
+    <h1 id="map-title">Karte</h1>
+    <select id="map-status" aria-label="Status">
+      <option value="offen">Offen</option>
+      <option value="arbeit">In Arbeit</option>
+      <option value="fertig">Fertig</option>
+    </select>
+    <button id="btn-edit" class="icon" aria-label="Karte bearbeiten">✎</button>
+  </header>
+  <div class="timer-bar" hidden></div>
+
+  <div id="stage" class="stage">
+    <svg id="svg"></svg>
+    <div id="map-info" class="map-info"></div>
+    <div id="rec-badge" class="rec-badge" hidden>● REC <span id="rec-stats"></span></div>
+    <button id="t-fit" class="fab" title="Ganze Karte zeigen" aria-label="Ganze Karte zeigen">⤢</button>
+  </div>
+
+  <div id="sel-bar" class="sel-bar" hidden>
+    <div id="sel-info" class="sel-info"></div>
+    <div class="row">
+      <button class="kind k-erledigt" data-kind="erledigt">Erledigt</button>
+      <button class="kind k-offen" data-kind="offen">Offen</button>
+      <button class="kind k-hinweis" data-kind="hinweis">Hinweis</button>
+      <button id="sel-del" class="btn danger">Löschen</button>
+      <button id="sel-close" class="icon">✕</button>
+    </div>
+  </div>
+
+  <footer class="bottom tools">
+    <button id="t-follow" class="tool" title="Position">◎<small>Position</small></button>
+    <button id="t-draw" class="tool" title="Malen">✎<small>Malen</small></button>
+    <button id="t-kind" class="tool kindtool k-erledigt" title="Farbe">■<small id="t-kind-lbl">Erledigt</small></button>
+    <button id="t-rec" class="tool" title="Track aufnehmen">●<small>Track</small></button>
+    <button id="t-time" class="tool" title="Zeiterfassung">⏱<small id="t-time-lbl">Zeit</small></button>
+    <button id="t-undo" class="tool" title="Rückgängig">↶<small>Zurück</small></button>
+  </footer>
+</section>
+
+<!-- ===== Übersichtskarte ===== -->
+<section id="view-overview" class="view">
+  <header class="bar">
+    <button id="ov-back" class="icon" aria-label="Zur Liste">‹</button>
+    <h1>Übersicht</h1>
+    <button id="ov-tiles" class="icon" title="Hintergrundkarte an/aus" aria-label="Hintergrundkarte an/aus">▦</button>
+  </header>
+  <div class="timer-bar" hidden></div>
+  <div class="stage">
+    <svg id="ov-svg"></svg>
+    <div id="ov-info" class="ov-info"></div>
+    <div class="fab-col">
+      <button id="ov-fit" class="fab static" title="Alle Karten" aria-label="Alle Karten">⤢</button>
+      <button id="ov-pos" class="fab static" title="Meine Position" aria-label="Meine Position">◎</button>
+    </div>
+    <div id="ov-legend" class="ov-legend"><i style="background:#64748b"></i>Offen <i style="background:#d97706"></i>In Arbeit <i style="background:#16a34a"></i>Fertig</div>
+    <div id="ov-attr" class="ov-attr">© OpenStreetMap-Mitwirkende</div>
+  </div>
+</section>
+
+<!-- ===== Dialoge ===== -->
+<dialog id="dlg-switch">
+  <form method="dialog">
+    <h2>Zählstelle wechseln?</h2>
+    <p id="sw-text"></p>
+    <div class="col">
+      <button value="anfahrt" id="sw-anfahrt" class="btn primary"></button>
+      <button value="jetzt" id="sw-jetzt" class="btn"></button>
+      <button value="nein" id="sw-nein" class="btn"></button>
+      <button value="stop" class="btn danger">Zeit stoppen</button>
+    </div>
+    <p class="muted small" id="sw-hint"></p>
+  </form>
+</dialog>
+
+<dialog id="dlg-time">
+  <form method="dialog">
+    <h2 id="time-title">Zeiteintrag</h2>
+    <label>Karte <select name="mapId" required></select></label>
+    <label>Beginn <input type="datetime-local" name="start" required></label>
+    <label>Ende <input type="datetime-local" name="end" required></label>
+    <p class="muted" id="time-meta"></p>
+    <div class="row end">
+      <button value="delete" class="btn danger" formnovalidate id="time-del">Löschen</button>
+      <span class="grow"></span>
+      <button value="cancel" class="btn" formnovalidate>Abbrechen</button>
+      <button value="ok" class="btn primary">Speichern</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-edit">
+  <form method="dialog">
+    <h2>Karte bearbeiten</h2>
+    <label>Name <input name="name" required></label>
+    <label>Saison <input name="season" list="dl-seasons" placeholder="26/27" pattern="\d{2}/\d{2}"></label>
+    <label>Revier (optional) <input name="revier" list="dl-reviere"></label>
+    <label>Notiz <textarea name="note" rows="3"></textarea></label>
+    <p class="muted" id="edit-meta"></p>
+    <div class="row end">
+      <button value="delete" class="btn danger" formnovalidate>Karte entfernen</button>
+      <span class="grow"></span>
+      <button value="cancel" class="btn" formnovalidate>Abbrechen</button>
+      <button value="ok" class="btn primary">Speichern</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-share">
+  <form method="dialog">
+    <h2>Arbeitsstand teilen</h2>
+    <p class="muted">Erzeugt eine kleine Datei mit Status, Revieren, Linien und Tracks. Die anderen öffnen sie in WhatsApp und wählen „Mulchkarten“ – oder importieren sie über „＋ Importieren“.</p>
+    <label>Saison <select name="season"></select></label>
+    <label class="chk"><input type="checkbox" name="withPdf"> Karten-PDFs mitschicken (für neue Kollegen)</label>
+    <div class="row end">
+      <button value="cancel" class="btn" formnovalidate>Abbrechen</button>
+      <button value="ok" class="btn primary">Teilen</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-settings">
+  <form method="dialog">
+    <h2>Einstellungen</h2>
+    <label>Dein Name / Kürzel <input name="user" required placeholder="z. B. Christian"></label>
+    <label>Aktuelle Saison <input name="season" list="dl-seasons" pattern="\d{2}/\d{2}"></label>
+    <p class="muted" id="storage-info"></p>
+    <div class="row end">
+      <button value="wipe" class="btn danger" formnovalidate>Alle Daten löschen</button>
+      <span class="grow"></span>
+      <button value="ok" class="btn primary">Speichern</button>
+    </div>
+    <p class="muted small">Mulchkarten · Version <span id="app-version"></span> · Daten bleiben nur auf diesem Gerät.</p>
+  </form>
+</dialog>
+
+<dialog id="dlg-stats" class="wide">
+  <form method="dialog">
+    <h2>Auswertung</h2>
+    <label>Saison <select id="stats-season"></select></label>
+    <div id="stats-body"></div>
+    <div class="row end">
+      <button id="stats-add" type="button" class="btn">＋ Zeit nachtragen</button>
+      <button id="stats-csv" type="button" class="btn">Zeiten als CSV teilen</button>
+      <button value="ok" class="btn primary">Schließen</button>
+    </div>
+  </form>
+</dialog>
+
+<datalist id="dl-seasons"></datalist>
+<datalist id="dl-reviere"></datalist>
+
+<div id="toast" class="toast" hidden></div>
+<div id="busy" class="busy" hidden><div class="spinner"></div><p id="busy-text">Bitte warten …</p></div>
+</body>
+</html>
