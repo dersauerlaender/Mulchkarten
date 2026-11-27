@@ -422,6 +422,19 @@ export function initOverview(ctx) {
       if (!fitted) { fitAll(false); fitted = true; } else render();
     },
     update(list) { if (list) maps = list; render(); },
+    /** Auf einen Punkt zentrieren und so weit herauszoomen, dass ein Kartenrahmen ganz sichtbar ist */
+    focus(ll, footprint) {
+      const { width: W, height: H } = size();
+      const c = toWorld(ll);
+      let k = 2 ** 17;
+      for (const q of footprint) {
+        const w = toWorld(q);
+        const [vx, vy] = rotPt([w[0] - c[0], w[1] - c[1]], rot());
+        k = Math.min(k, (W / 2) * 0.92 / Math.max(Math.abs(vx), 1e-9), (H / 2) * 0.88 / Math.max(Math.abs(vy), 1e-9));
+      }
+      fitted = true;
+      gRot.call(zoom.transform, d3.zoomIdentity.translate(W / 2 - c[0] * k, H / 2 - c[1] * k).scale(k));
+    },
     updatePos: renderPos,
     fitAll,
     addPoiHere: () => ctx.addPoiAtPos(),

@@ -6,7 +6,7 @@ import { initOverview } from './overview.js';
 import { oneFingerZoom, twoFinger } from './gestures.js';
 import { getBearing, setBearing, onBearing, rotPt, clientToLocal, animateBearing, updateCompass } from './rotation.js';
 
-export const APP_VERSION = '1.10.0';
+export const APP_VERSION = '1.10.1';
 const d3 = window.d3;
 const $ = (s) => document.querySelector(s);
 const KINDS = ['erledigt', 'offen', 'hinweis'];
@@ -703,11 +703,18 @@ async function openMap(id) {
 /** Karte verlassen (vom Verlauf aus aufgerufen) */
 function leaveMap(target) {
   if (S.rec) stopRec();
+  // Bildmitte der Einzelkarte merken (geografisch) + Kartenrahmen, für die Übersicht
+  const m = S.map;
+  const center = m ? S.T.toLatLon(...S.zt.invert(stageCenter())) : null;
   S.map = null;
   setDraw(false);
   showView(target);
   refreshMaps();
-  if (target === 'view-overview') ov.update(filteredMaps());
+  if (target === 'view-overview') {
+    fillOvSeason();
+    ov.update(filteredMaps());
+    if (center) ov.focus(center, m.georef.footprint);
+  }
 }
 
 // Android-Zurück / Browser-Zurück
