@@ -1,6 +1,7 @@
 // Übersichtskarte: alle Kartenrahmen (nach Status gefärbt), Vorschaubilder der PDFs,
 // optional OpenStreetMap-Hintergrund (nur online), eigene Position.
 import { makeTransform, inPolygon } from './georef.js';
+import { oneFingerZoom } from './gestures.js';
 
 const d3 = window.d3;
 const TILE = 256;
@@ -51,11 +52,18 @@ export function initOverview(ctx) {
     .scaleExtent([1, 2 ** 20])
     .on('zoom', (ev) => { zt = ev.transform; render(); });
   svg.call(zoom).on('dblclick.zoom', null);
+  const ofz = oneFingerZoom(svg, zoom);
 
+  // Tippen: kurz warten, ob ein zweiter Tipp (Doppeltipp-Zoom) folgt
   svg.on('click', (ev) => {
+    if (ofz.busy()) return;
+    const pt = d3.pointer(ev, svg.node());
+    setTimeout(() => { if (!ofz.busy()) onTap(pt); }, ofz.DOUBLE_MS + 30);
+  });
+
+  function onTap([mx, my]) {
     const el = document.querySelector('#ov-info');
     if (el.innerHTML.trim()) { el.innerHTML = ''; return; }   // erster Tipp schließt nur das Fenster
-    const [mx, my] = d3.pointer(ev, svg.node());
     const ll = fromWorld(zt.invert([mx, my]));
     const poi = ctx.getPois().map((p) => {
       const [x, y] = scr(p.coords[0]);
@@ -72,7 +80,7 @@ export function initOverview(ctx) {
       }).filter((x) => x.d < 26).sort((a, b) => a.d - b.d).map((x) => x.m).slice(0, 1);
     }
     showInfo(hits, ll, null);
-  });
+  }
 
   function centroid(m) {
     const f = m.georef.footprint;

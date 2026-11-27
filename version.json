@@ -1,5 +1,5 @@
 {
- "version": "1.6.2",
+ "version": "1.7.0",
  "assets": [
   "./",
   "./index.html",
@@ -8,6 +8,7 @@
   "./js/app.js",
   "./js/db.js",
   "./js/georef.js",
+  "./js/gestures.js",
   "./js/model.js",
   "./js/overview.js",
   "./js/pdfimport.js",

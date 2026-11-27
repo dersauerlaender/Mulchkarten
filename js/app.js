@@ -3,8 +3,9 @@ import { db } from './db.js';
 import * as M from './model.js';
 import { makeTransform, inPolygon, distToPolygon, distMeters, bboxOverlap } from './georef.js';
 import { initOverview } from './overview.js';
+import { oneFingerZoom } from './gestures.js';
 
-export const APP_VERSION = '1.6.2';
+export const APP_VERSION = '1.7.0';
 const d3 = window.d3;
 const $ = (s) => document.querySelector(s);
 const KINDS = ['erledigt', 'offen', 'hinweis'];
@@ -485,6 +486,8 @@ function bindMap() {
       drawPick();
     });
   svg.call(S.zoom);
+  // Doppeltippen / Doppeltippen + Ziehen = Ein-Finger-Zoom
+  S.ofz = oneFingerZoom(svg, S.zoom, { enabled: () => !S.draw, onStart: () => { cancelLp(); select(null); } });
 
   // Freihand zeichnen
   const node = svg.node();
@@ -494,7 +497,7 @@ function bindMap() {
   const cancelLp = () => { if (lp) { clearTimeout(lp.t); lp = null; } };
   node.addEventListener('pointerdown', (e) => {
     pointers.add(e.pointerId);
-    if (!S.draw && pointers.size === 1) {
+    if (!S.draw && pointers.size === 1 && !S.ofz.busy()) {
       const ll = toLatLon(e);
       lp = { x: e.clientX, y: e.clientY, t: setTimeout(() => { lp = null; S.lpDone = Date.now(); navigator.vibrate?.(30); showMapPopup(ll, null); }, 550) };
     } else cancelLp();
@@ -531,7 +534,7 @@ function bindMap() {
 
   // Auswahl
   svg.on('click', (ev) => {
-    if (S.draw) return;
+    if (S.draw || S.ofz.busy()) return;
     if (Date.now() - (S.lpDone || 0) < 600) return;   // Klick nach langem Drücken ignorieren
     const poiEl = ev.target.closest?.('[data-poi]');
     if (poiEl) {

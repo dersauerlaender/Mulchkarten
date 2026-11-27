@@ -1,5 +1,5 @@
 // Service Worker: Offline-Cache + Empfang geteilter Dateien (Android "Teilen → Mulchkarten")
-const VERSION = 'mk-1.6.2';
+const VERSION = 'mk-1.7.0';
 const ASSETS = [
   './',
   './index.html',
@@ -8,6 +8,7 @@ const ASSETS = [
   './js/app.js',
   './js/db.js',
   './js/georef.js',
+  './js/gestures.js',
   './js/model.js',
   './js/overview.js',
   './js/pdfimport.js',
