@@ -11,7 +11,7 @@ Offline-Web-App (PWA) für Geo-PDF-Karten (z. B. ArcGIS-Exporte von Hessen Forst
 - **Arbeitsstand teilen** über WhatsApp (kleine .txt-Datei), Import beim Kollegen führt die Stände zusammen
 - **Zeiterfassung pro Karte** mit Zählstellen-Wechsel (siehe unten), Zeiten nachtragen und korrigieren
 - **Auswertung**: Stunden je Revier, Karte und Person, km aus den Tracks, Export als CSV
-- **Übersichtskarte** (🗺): alle Kartenrahmen nach Status gefärbt, mit den PDF-Karten als Vorschaubild (auch offline), dazu OpenStreetMap als Hintergrund, wenn Internet da ist (▦ schaltet ihn ab). Antippen zeigt die Karten an dieser Stelle mit „Öffnen“, „Nach vorn“, „Transparent“ und „Ausblenden“. Über ◫ Ebenen lassen sich alle Karten auf Sichtbar, Transparent oder Aus stellen. Das gilt nur für die Übersicht auf dem eigenen Gerät.
+- **Übersichtskarte** (🗺): alle Kartenrahmen nach Status gefärbt, mit den PDF-Karten als Vorschaubild (auch offline), dazu OpenStreetMap als Hintergrund, wenn Internet da ist (▦ schaltet ihn ab). Beim Hineinzoomen erscheinen auch die eingezeichneten Linien und Tracks aller Karten (abschaltbar unter ◫ Ebenen). Antippen zeigt die Karten an dieser Stelle mit „Öffnen“, „Nach vorn“, „Transparent“ und „Ausblenden“. Über ◫ Ebenen lassen sich alle Karten auf Sichtbar, Transparent oder Aus stellen. Das gilt nur für die Übersicht auf dem eigenen Gerät.
 - **⤢ Ganze Karte**: holt die Ansicht zurück auf die komplette Karte. „Position“ springt nicht mehr ins Leere, wenn man mehr als 3 km entfernt ist.
 
 Alle Daten liegen nur auf dem jeweiligen Handy (IndexedDB). Es gibt keinen Server und kein Konto.

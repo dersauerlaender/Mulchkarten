@@ -23,6 +23,7 @@ export function initOverview(ctx) {
   const gTiles = svg.append('g');
   const gThumbs = svg.append('g');
   const gFoot = svg.append('g');
+  const gLines = svg.append('g').attr('pointer-events', 'none');
   const gLabels = svg.append('g').attr('pointer-events', 'none');
   const gPoi = svg.append('g').attr('pointer-events', 'none');
   const gPick = svg.append('g').attr('pointer-events', 'none');
@@ -50,7 +51,8 @@ export function initOverview(ctx) {
 
   const zoom = d3.zoom()
     .scaleExtent([1, 2 ** 20])
-    .on('zoom', (ev) => { zt = ev.transform; render(); });
+    .on('zoom', (ev) => { zt = ev.transform; render(true); })
+    .on('end', () => renderLines());   // Linien erst nach der Geste genau neu berechnen
   svg.call(zoom).on('dblclick.zoom', null);
   const ofz = oneFingerZoom(svg, zoom);
 
@@ -192,7 +194,7 @@ export function initOverview(ctx) {
     return Math.max(d3.max(p, (q) => q[0]) - d3.min(p, (q) => q[0]), d3.max(p, (q) => q[1]) - d3.min(p, (q) => q[1]));
   }
 
-  function render() {
+  function render(zooming = false) {
     renderTiles();
     const visible = maps.filter((m) => m.georef && modeOf(m) !== 'hidden').sort(drawOrder);
     const nHidden = maps.filter((m) => m.georef && modeOf(m) === 'hidden').length;
@@ -223,10 +225,65 @@ export function initOverview(ctx) {
       .attr('class', 'ov-label').attr('opacity', (m) => (modeOf(m) === 'trans' ? 0.5 : 1))
       .attr('x', (m) => scr(centroid(m))[0]).attr('y', (m) => scr(centroid(m))[1])
       .text((m) => m.name);
+    if (zooming) moveLines(); else renderLines();
     renderPois();
     renderPick();
     renderPos();
     document.querySelector('#ov-attr').hidden = !useTiles();
+  }
+
+  // ---- Linien & Tracks aus den Karten ----
+  const LINE_K = 2 ** 12.5;     // ab hier sichtbar (Karten ca. 150 px breit)
+  const LINE_COLOR = { erledigt: '#16a34a', offen: '#dc2626', hinweis: '#f59e0b' };
+  const showLines = () => localStorage.getItem('ov-lines') !== '0';
+
+  let linesT = null;   // Transformation beim letzten vollständigen Zeichnen
+
+  /** Während des Zoomens: vorhandene Linien nur verschieben/skalieren (schnell) */
+  function moveLines() {
+    if (!linesT || !(showLines() && zt.k >= LINE_K)) { renderLines(); return; }
+    const r = zt.k / linesT.k;
+    if (r > 4 || r < 0.25) { renderLines(); return; }   // zu weit weg: lieber neu
+    gLines.attr('transform', `translate(${zt.x - linesT.x * r},${zt.y - linesT.y * r}) scale(${r})`);
+  }
+
+  function renderLines() {
+    gLines.attr('transform', null);
+    linesT = zt;
+    const visibleNow = showLines() && zt.k >= LINE_K;
+    if (!visibleNow) { gLines.selectAll('*').remove(); return; }
+    const { width: W, height: H } = size();
+    const mode = Object.fromEntries(maps.map((m) => [m.id, modeOf(m)]));
+    const out = [];
+    for (const f of ctx.getLines()) {
+      const md = mode[f.mapId];
+      if (md === 'hidden') continue;
+      // Grob-Test über die Bounding-Box, ob im Bild
+      if (f.bbox) {
+        const [x0, y1] = scr([f.bbox[0], f.bbox[1]]), [x1, y0] = scr([f.bbox[2], f.bbox[3]]);
+        if (x1 < -20 || x0 > W + 20 || y1 < -20 || y0 > H + 20) continue;
+      }
+      // Punkte, die auf dem Bildschirm zusammenfallen, weglassen
+      const pts = [];
+      let last = null;
+      for (const c of f.coords) {
+        const p = scr(c);
+        if (!last || Math.abs(p[0] - last[0]) + Math.abs(p[1] - last[1]) > 1.5) { pts.push(p); last = p; }
+      }
+      const lp = scr(f.coords[f.coords.length - 1]);
+      if (pts.length && (pts[pts.length - 1][0] !== lp[0] || pts[pts.length - 1][1] !== lp[1])) pts.push(lp);
+      if (pts.length > 1) out.push({ f, pts, trans: md === 'trans' });
+    }
+    const line = d3.line();
+    gLines.selectAll('path').data(out, (d) => d.f.id).join('path')
+      .attr('d', (d) => line(d.pts))
+      .attr('fill', 'none')
+      .attr('stroke', (d) => LINE_COLOR[d.f.kind] || '#555')
+      .attr('stroke-width', (d) => (d.f.type === 'track' ? 4 : 3.5))
+      .attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round')
+      .attr('vector-effect', 'non-scaling-stroke')
+      .attr('stroke-dasharray', (d) => (d.f.kind === 'hinweis' ? '8 6' : null))
+      .attr('opacity', (d) => (d.trans ? 0.35 : 0.95));
   }
 
   function renderPois() {
@@ -295,6 +352,9 @@ export function initOverview(ctx) {
           <option value="hidden" ${modeOf(m) === 'hidden' ? 'selected' : ''}>Aus</option>
         </select></li>`).join('') || '<li class="muted">Keine Karten im aktuellen Filter.</li>';
     document.querySelectorAll('#layers-list select').forEach((s) => (s.onchange = () => setMode(s.dataset.id, s.value)));
+    const cb = document.querySelector('#layers-lines');
+    cb.checked = showLines();
+    cb.onchange = () => { localStorage.setItem('ov-lines', cb.checked ? '1' : '0'); render(); };
     document.querySelector('#dlg-layers').showModal();
   };
   document.querySelector('#ov-layers').onclick = openLayers;

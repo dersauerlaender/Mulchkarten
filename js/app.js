@@ -5,7 +5,7 @@ import { makeTransform, inPolygon, distToPolygon, distMeters, bboxOverlap } from
 import { initOverview } from './overview.js';
 import { oneFingerZoom } from './gestures.js';
 
-export const APP_VERSION = '1.7.0';
+export const APP_VERSION = '1.8.0';
 const d3 = window.d3;
 const $ = (s) => document.querySelector(s);
 const KINDS = ['erledigt', 'offen', 'hinweis'];
@@ -178,6 +178,7 @@ async function init() {
   ov = initOverview({
     esc, toast, openMap, getThumb: M.getThumb,
     getPois: () => S.pois || [],
+    getLines: () => S.lines || [],
     poiIcon, pointPopupHTML, bindPointPopup, drawPin,
     addPoiAtPos: () => {
       if (!S.pos) { toast('Kein GPS – tippe stattdessen auf die Karte und wähle „Als POI speichern“.'); return; }
@@ -257,7 +258,9 @@ function bindUpdate() {
 let ov;
 async function refreshMaps() {
   S.maps = await M.getMaps();
-  S.pois = (await M.getFeatures()).filter((f) => f.type === 'poi');
+  const feats = await M.getFeatures();
+  S.pois = feats.filter((f) => f.type === 'poi');
+  S.lines = feats.filter((f) => f.type !== 'poi' && f.coords?.length > 1);
   fillFilters();
   renderList();
   if ($('#view-overview').classList.contains('active')) ov.update(filteredMaps());
