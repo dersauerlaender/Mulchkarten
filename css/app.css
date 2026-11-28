@@ -279,3 +279,6 @@ body.not-installed .btn-settings::after { content: ''; position: absolute; top: 
 .zoom-btns button { height: 48px; border: 0; background: none; font-size: 1.5rem; font-weight: 600; color: var(--brand); }
 .zoom-btns button + button { border-top: 1px solid var(--line); }
 .zoom-btns button:active { background: #e8e5dd; }
+
+/* Positions-Knopf: grün, solange die Karte der Position folgt */
+.fab.on { background: var(--brand-2); color: #fff; }
