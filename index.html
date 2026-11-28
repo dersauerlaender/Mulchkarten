@@ -196,6 +196,19 @@
   </form>
 </dialog>
 
+<dialog id="dlg-ios-install">
+  <form method="dialog">
+    <h2>Auf dem iPhone installieren</h2>
+    <ol class="steps">
+      <li>Unten in Safari auf das <b>Teilen-Symbol</b> tippen (Viereck mit Pfeil nach oben).</li>
+      <li>Nach unten scrollen und <b>„Zum Home-Bildschirm“</b> wählen, dann <b>„Hinzufügen“</b>.</li>
+      <li>Ab dann die App <b>nur noch über das neue Symbol</b> öffnen.</li>
+    </ol>
+    <p class="muted small">Apple erlaubt Web-Apps keinen eigenen Installieren-Knopf, deshalb geht es nur über das Teilen-Menü. In Chrome auf dem iPhone: Teilen-Symbol oben rechts → „Zum Home-Bildschirm“.</p>
+    <div class="row end"><button value="ok" class="btn primary">Verstanden</button></div>
+  </form>
+</dialog>
+
 <dialog id="dlg-paste">
   <form method="dialog">
     <h2>Arbeitsstand einfügen</h2>
@@ -286,6 +299,21 @@
     <label>Dein Name / Kürzel <input name="user" required placeholder="z. B. Christian"></label>
     <label>Aktuelle Saison <input name="season" list="dl-seasons" pattern="\d{2}/\d{2}"></label>
     <p class="muted" id="storage-info"></p>
+    <div class="install-box">
+      <button type="button" id="btn-install" class="btn primary" style="width:100%">📲 Als App installieren</button>
+      <p id="install-state" class="muted small"></p>
+      <details class="install-why">
+        <summary>Was bringt die Installation?</summary>
+        <ul>
+          <li><b>Eigenes Symbol</b> auf dem Startbildschirm, Start ohne Browser, im Vollbild ohne Adressleiste.</li>
+          <li><b>Android:</b> „Mulchkarten“ erscheint im Teilen-Menü von WhatsApp. Karten und Stände kommen so mit zwei Tipps in die App.</li>
+          <li><b>Daten bleiben sicher:</b> Der Browser räumt die Daten einer installierten App nicht von selbst auf.</li>
+          <li><b>Offline:</b> Die App startet auch ohne Netz im Wald.</li>
+          <li>Kostet keinen Speicher extra und ist kein App-Store nötig. Updates kommen weiter über „Nach Updates suchen“.</li>
+        </ul>
+        <p class="warn">Wichtig: Browser und installierte App haben <b>getrennte Daten</b>. Am besten zuerst installieren und dann in der App die Karten importieren – oder vorher „Stand teilen“ mit Karten.</p>
+      </details>
+    </div>
     <button type="button" id="btn-paste" class="btn" style="width:100%">Arbeitsstand als Text einfügen</button>
     <button type="button" id="btn-update" class="btn" style="width:100%;margin-top:8px">Nach Updates suchen</button>
     <button type="button" id="btn-about" class="btn" style="width:100%;margin-top:8px">Über &amp; Lizenzen</button>

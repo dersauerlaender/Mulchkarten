@@ -6,7 +6,7 @@ import { initOverview } from './overview.js';
 import { oneFingerZoom, twoFinger } from './gestures.js';
 import { getBearing, setBearing, onBearing, rotPt, clientToLocal, animateBearing, updateCompass } from './rotation.js';
 
-export const APP_VERSION = '1.10.1';
+export const APP_VERSION = '1.11.0';
 const d3 = window.d3;
 const $ = (s) => document.querySelector(s);
 const KINDS = ['erledigt', 'offen', 'hinweis'];
@@ -187,6 +187,7 @@ async function init() {
   bindTimer();
   bindHistory();
   bindNav();
+  bindInstall();
   document.body.dataset.view = 'view-list';
   bindUpdate();
   ov = initOverview({
@@ -210,6 +211,68 @@ async function init() {
   await processShareInbox();
   if (!M.settings.user) openSettings(true);
   setTimeout(() => checkUpdate(false), 3000);
+}
+
+// ---------- Installation ----------
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches || navigator.standalone === true;
+let installPrompt = null;      // von Chrome/Edge geliefertes Installations-Ereignis
+let installedElsewhere = false;
+
+function updateInstallUI() {
+  const btn = $('#btn-install'), st = $('#install-state');
+  const standalone = isStandalone();
+  document.body.classList.toggle('not-installed', !standalone && !installedElsewhere);
+  if (standalone) {
+    btn.disabled = true; btn.textContent = '✓ App ist installiert';
+    st.textContent = 'Du nutzt die installierte App.';
+  } else if (installedElsewhere) {
+    btn.disabled = true; btn.textContent = '✓ Bereits installiert';
+    st.textContent = 'Die App ist auf diesem Gerät installiert. Öffne sie über das Symbol auf dem Startbildschirm – hier im Browser hast du getrennte Daten.';
+  } else if (installPrompt) {
+    btn.disabled = false; btn.textContent = '📲 Als App installieren';
+    st.textContent = 'Läuft gerade nur im Browser.';
+  } else if (isIOS) {
+    btn.disabled = false; btn.textContent = '📲 Auf dem iPhone installieren';
+    st.textContent = 'Läuft gerade nur im Browser.';
+  } else {
+    btn.disabled = false; btn.textContent = '📲 Als App installieren';
+    st.textContent = 'Läuft gerade nur im Browser. Falls der Knopf nichts tut: in Chrome über ⋮ → „App installieren“.';
+  }
+}
+
+function bindInstall() {
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();            // eigene Leiste von Chrome unterdrücken, wir haben den Knopf
+    installPrompt = e;
+    updateInstallUI();
+  });
+  window.addEventListener('appinstalled', () => {
+    installPrompt = null;
+    installedElsewhere = true;
+    updateInstallUI();
+    toast('Installiert! Öffne Mulchkarten ab jetzt über das neue Symbol.', 7000);
+  });
+  matchMedia('(display-mode: standalone)').addEventListener?.('change', updateInstallUI);
+  // Ist die App schon installiert, obwohl wir im Browser laufen? (Chrome Android)
+  navigator.getInstalledRelatedApps?.().then((apps) => {
+    if (apps?.length) { installedElsewhere = true; updateInstallUI(); }
+  }).catch(() => {});
+  $('#btn-install').onclick = async () => {
+    if (installPrompt) {
+      const p = installPrompt;
+      installPrompt = null;
+      p.prompt();
+      const { outcome } = await p.userChoice;
+      if (outcome !== 'accepted') toast('Installation abgebrochen.');
+      updateInstallUI();
+    } else if (isIOS) {
+      $('#dlg-settings').close('cancel');
+      $('#dlg-ios-install').showModal();
+    } else {
+      toast('Dein Browser bietet die Installation gerade nicht an. In Chrome: Menü ⋮ → „App installieren“ bzw. „Zum Startbildschirm hinzufügen“.', 8000);
+    }
+  };
+  updateInstallUI();
 }
 
 // ---------- Updates ----------

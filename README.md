@@ -32,7 +32,7 @@ Danach auf jedem Handy die Adresse öffnen und die App auf den Startbildschirm l
 - **Android (Chrome)**: Menü ⋮ → „App installieren“ / „Zum Startbildschirm hinzufügen“
 - **iPhone (Safari)**: Teilen-Symbol → „Zum Home-Bildschirm“
 
-Erst danach erscheint „Mulchkarten“ auf Android im WhatsApp-Teilen-Menü, und der Speicher ist vor dem Aufräumen durch den Browser geschützt.
+Einfacher: In der App unter ⚙ auf **„Als App installieren“** tippen. Der rote Punkt am ⚙ zeigt, dass die App noch nur im Browser läuft. Erst danach erscheint „Mulchkarten“ auf Android im WhatsApp-Teilen-Menü, und der Speicher ist vor dem Aufräumen durch den Browser geschützt.
 
 ## Bedienung
 

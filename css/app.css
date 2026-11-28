@@ -260,3 +260,15 @@ body.ov-popup .ov-season { display: none; }
 
 .warn { background: #fff7e6; border: 1px solid #f5c26b; border-radius: 10px; padding: 8px 10px; font-size: .86rem; margin: 6px 0; }
 .warn[hidden] { display: none; }
+
+/* Installation */
+.install-box { margin: 12px 0; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: #f8f7f3; }
+.install-box .btn:disabled { background: #e7e5df; color: var(--muted); border-color: var(--line); }
+.install-why summary { cursor: pointer; font-weight: 650; font-size: .92rem; margin-top: 6px; }
+.install-why ul { margin: 6px 0; padding-left: 18px; font-size: .88rem; }
+.install-why li { margin: 4px 0; }
+.steps { padding-left: 20px; } .steps li { margin: 8px 0; }
+/* roter Punkt am Einstellungs-Knopf, solange nur im Browser */
+.btn-settings { position: relative; }
+body.not-installed .btn-settings::after { content: ''; position: absolute; top: 9px; right: 9px; width: 10px; height: 10px; border-radius: 50%;
+  background: #ef4444; box-shadow: 0 0 0 2px var(--brand); }
