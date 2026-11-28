@@ -1,5 +1,9 @@
 // Service Worker: Offline-Cache + Empfang geteilter Dateien (Android "Teilen → Mulchkarten")
-const VERSION = 'mk-1.13.0';
+// Alle Namen mit Präfix: unter dersauerlaender.github.io laufen mehrere Apps (z. B. OpenMixedRation)
+// mit gemeinsamem Speicher. Gelöscht werden NUR eigene Zwischenspeicher.
+const PREFIX = 'mulchkarten-';
+const VERSION = PREFIX + 'app-1.13.1';
+const INBOX = PREFIX + 'share-inbox';
 const ASSETS = [
   './',
   './index.html',
@@ -13,6 +17,7 @@ const ASSETS = [
   './js/overview.js',
   './js/pdfimport.js',
   './js/rotation.js',
+  './js/storage.js',
   './vendor/d3.min.js',
   './vendor/pdf-lib.min.js',
   './vendor/pdf.min.mjs',
@@ -30,7 +35,7 @@ self.addEventListener('install', (e) => {
 });
 
 // ---- OpenStreetMap-Kacheln zwischenspeichern (angesehene Gegenden auch offline) ----
-const TILE_CACHE = 'osm-tiles';
+const TILE_CACHE = PREFIX + 'osm-tiles';
 const TILE_MAX = 3000;                    // ca. 40–60 MB
 const TILE_MAX_AGE = 30 * 864e5;          // nach 30 Tagen im Hintergrund erneuern
 let tilePuts = 0;
@@ -67,7 +72,21 @@ async function tileResponse(req) {
 
 self.addEventListener('activate', (e) => {
   e.waitUntil((async () => {
-    for (const k of await caches.keys()) if (k !== VERSION && k !== 'share-inbox' && k !== TILE_CACHE) await caches.delete(k);
+    const scopePath = new URL(self.registration.scope).pathname;
+    for (const k of await caches.keys()) {
+      if (k === VERSION || k === INBOX || k === TILE_CACHE) continue;
+      if (k.startsWith(PREFIX) || /^mk-\d/.test(k)) { await caches.delete(k); continue; }   // alte eigene App-Versionen
+      // alte Namen ohne Präfix (≤ 1.13): nur löschen, wenn der Inhalt eindeutig von uns ist
+      if (k === 'osm-tiles' || k === 'share-inbox') {
+        const c = await caches.open(k);
+        const keys = await c.keys();
+        const ours = keys.length === 0 ? false : keys.every((r) => {
+          const u = new URL(r.url);
+          return k === 'osm-tiles' ? u.hostname === 'tile.openstreetmap.org' : u.pathname.startsWith(scopePath);
+        });
+        if (ours) await caches.delete(k);
+      }
+    }
     await self.clients.claim();
   })());
 });
@@ -78,7 +97,7 @@ self.addEventListener('fetch', (e) => {
     e.respondWith((async () => {
       const form = await e.request.formData();
       const files = form.getAll('files');
-      const inbox = await caches.open('share-inbox');
+      const inbox = await caches.open(INBOX);
       let i = 0;
       for (const f of files) {
         if (!(f instanceof File)) continue;

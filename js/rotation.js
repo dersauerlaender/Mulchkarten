@@ -1,8 +1,9 @@
+import { ls } from './storage.js';
 // Gemeinsame Blickrichtung für Übersicht und Einzelkarten.
 // bearing = Himmelsrichtung, die oben auf dem Bildschirm liegt (0 = Norden, 90 = Osten, 270 = Westen).
 const KEY = 'bearing';
 let bearing = 0;
-try { bearing = +localStorage.getItem(KEY) || 0; } catch { /* egal */ }
+bearing = +ls.get(KEY) || 0;
 const subs = new Set();
 
 export const getBearing = () => bearing;
@@ -10,7 +11,7 @@ export const getBearing = () => bearing;
 export function setBearing(b) {
   bearing = ((b % 360) + 360) % 360;
   if (Math.abs(bearing) < 0.05 || Math.abs(bearing - 360) < 0.05) bearing = 0;
-  try { localStorage.setItem(KEY, String(bearing)); } catch { /* egal */ }
+  ls.set(KEY, bearing);
   subs.forEach((f) => f(bearing));
 }
 

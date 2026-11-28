@@ -1,4 +1,5 @@
 // Mulchkarten – Oberfläche
+import { ls, INBOX_CACHE, CACHE_PREFIX } from './storage.js';
 import { db } from './db.js';
 import * as M from './model.js';
 import { makeTransform, inPolygon, distToPolygon, distMeters, bboxOverlap } from './georef.js';
@@ -6,7 +7,7 @@ import { initOverview } from './overview.js';
 import { oneFingerZoom, twoFinger } from './gestures.js';
 import { getBearing, setBearing, onBearing, rotPt, clientToLocal, animateBearing, updateCompass } from './rotation.js';
 
-export const APP_VERSION = '1.13.0';
+export const APP_VERSION = '1.13.1';
 const d3 = window.d3;
 const $ = (s) => document.querySelector(s);
 const KINDS = ['erledigt', 'offen', 'hinweis'];
@@ -310,9 +311,13 @@ async function doUpdate() {
   try {
     const assets = remoteInfo?.assets || [];
     for (const u of assets) await fetch(u, { cache: 'reload' });   // HTTP-Cache auffrischen
-    for (const k of await caches.keys()) if (k !== 'share-inbox') await caches.delete(k);
-    const regs = await navigator.serviceWorker?.getRegistrations?.() || [];
-    for (const r of regs) await r.unregister();
+    // nur UNSEREN App-Cache leeren – andere Apps unter derselben Adresse nicht anfassen
+    for (const k of await caches.keys()) {
+      if ((k.startsWith(CACHE_PREFIX) || /^mk-\d/.test(k)) && k !== INBOX_CACHE && k !== CACHE_PREFIX + 'osm-tiles') await caches.delete(k);
+    }
+    // nur unseren Service Worker (Bereich dieser App) abmelden
+    const reg = await navigator.serviceWorker?.getRegistration?.();
+    if (reg && new URL(reg.scope).pathname === new URL('./', location.href).pathname) await reg.unregister();
   } catch (err) {
     busy(false);
     toast(`Update fehlgeschlagen: ${err.message}`);
@@ -372,8 +377,8 @@ function fillFilters() {
   const seasons = [...new Set([M.settings.season, ...S.maps.map((m) => m.season).filter(Boolean)])].sort().reverse();
   const reviere = [...new Set(S.maps.map((m) => m.revier).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'de'));
   const fs = $('#f-season'), fr = $('#f-revier');
-  const curS = fs.value || localStorage.getItem('f-season') || M.settings.season;
-  const curR = fr.value || localStorage.getItem('f-revier') || '';
+  const curS = fs.value || ls.get('f-season') || M.settings.season;
+  const curR = fr.value || ls.get('f-revier') || '';
   fs.innerHTML = `<option value="alle">Alle Saisons</option>` + seasons.map((s) => `<option value="${esc(s)}">Saison ${esc(s)}</option>`).join('');
   fr.innerHTML = `<option value="">Alle Reviere</option><option value="-">(ohne Revier)</option>` + reviere.map((r) => `<option value="${esc(r)}">${esc(r)}</option>`).join('');
   fs.value = [...fs.options].some((o) => o.value === curS) ? curS : M.settings.season;
@@ -397,9 +402,9 @@ function filteredMaps() {
 
 function renderList() {
   const fs = $('#f-season').value, fr = $('#f-revier').value, hide = $('#f-hidedone').checked;
-  localStorage.setItem('f-season', fs);
-  localStorage.setItem('f-revier', fr);
-  localStorage.setItem('f-hidedone', hide ? '1' : '');
+  ls.set('f-season', fs);
+  ls.set('f-revier', fr);
+  ls.set('f-hidedone', hide ? '1' : '');
   let list = filteredMaps();
   list = list.map((m) => ({ m, d: mapDistance(m) }));
   list.sort((a, b) => {
@@ -425,7 +430,7 @@ function renderList() {
 }
 
 function bindList() {
-  $('#f-hidedone').checked = !!localStorage.getItem('f-hidedone');
+  $('#f-hidedone').checked = !!ls.get('f-hidedone');
   ['#f-season', '#f-revier', '#f-hidedone'].forEach((s) => $(s).addEventListener('change', renderList));
   $('#map-list').addEventListener('click', (e) => {
     const li = e.target.closest('.map-card');
@@ -522,16 +527,21 @@ async function importStateText(text, label) {
 
 async function processShareInbox() {
   if (!('caches' in window)) return;
-  const cache = await caches.open('share-inbox');
-  const reqs = await cache.keys();
-  if (!reqs.length) return;
   const files = [];
-  for (const r of reqs) {
-    const res = await cache.match(r);
-    const name = decodeURIComponent(res.headers.get('X-Filename') || 'datei');
-    files.push(new File([await res.blob()], name, { type: res.headers.get('Content-Type') || '' }));
-    await cache.delete(r);
+  // eigener Posteingang; dazu der alte (≤ 1.13) – dort nur Einträge aus unserem Pfad
+  const ourPath = new URL('./share-inbox/', location.href).pathname;
+  for (const name of [INBOX_CACHE, 'share-inbox']) {
+    if (name !== INBOX_CACHE && !(await caches.has(name))) continue;
+    const cache = await caches.open(name);
+    for (const r of await cache.keys()) {
+      if (name !== INBOX_CACHE && !new URL(r.url).pathname.startsWith(ourPath)) continue;
+      const res = await cache.match(r);
+      const fname = decodeURIComponent(res.headers.get('X-Filename') || 'datei');
+      files.push(new File([await res.blob()], fname, { type: res.headers.get('Content-Type') || '' }));
+      await cache.delete(r);
+    }
   }
+  if (!files.length) return;
   history.replaceState({ v: 'view-list' }, '', location.pathname);
   await handleFiles(files);
 }

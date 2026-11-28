@@ -1,5 +1,6 @@
 // Übersichtskarte: alle Kartenrahmen (nach Status gefärbt), Vorschaubilder der PDFs,
 // optional OpenStreetMap-Hintergrund (nur online), eigene Position.
+import { ls } from './storage.js';
 import { makeTransform, inPolygon } from './georef.js';
 import { oneFingerZoom, twoFinger } from './gestures.js';
 import { getBearing, setBearing, onBearing, rotPt, animateBearing, updateCompass } from './rotation.js';
@@ -48,8 +49,8 @@ export function initOverview(ctx) {
 
   // Anzeige je Karte (nur auf diesem Gerät): mode 'trans' | 'hidden', z = Reihenfolge
   let prefs = {};
-  try { prefs = JSON.parse(localStorage.getItem('ov-prefs') || '{}'); } catch { prefs = {}; }
-  const savePrefs = () => localStorage.setItem('ov-prefs', JSON.stringify(prefs));
+  try { prefs = JSON.parse(ls.get('ov-prefs') || '{}'); } catch { prefs = {}; }
+  const savePrefs = () => ls.set('ov-prefs', JSON.stringify(prefs));
   const modeOf = (m) => prefs[m.id]?.mode || 'normal';
   const setMode = (id, mode) => { prefs[id] = { ...prefs[id], mode }; savePrefs(); render(); };
   let zTop = Math.max(0, ...Object.values(prefs).map((p) => p.z || 0));
@@ -59,7 +60,7 @@ export function initOverview(ctx) {
 
   const scr = (ll) => zt.apply(toWorld(ll));
   const size = () => svg.node().getBoundingClientRect();
-  const useTiles = () => localStorage.getItem('ov-tiles') !== '0';
+  const useTiles = () => ls.get('ov-tiles') !== '0';
 
   const zoom = d3.zoom()
     .scaleExtent([1, 2 ** 20])
@@ -305,7 +306,7 @@ export function initOverview(ctx) {
   // ---- Linien & Tracks aus den Karten ----
   const LINE_K = 2 ** 12.5;     // ab hier sichtbar (Karten ca. 150 px breit)
   const LINE_COLOR = { erledigt: '#16a34a', offen: '#dc2626', hinweis: '#f59e0b' };
-  const showLines = () => localStorage.getItem('ov-lines') !== '0';
+  const showLines = () => ls.get('ov-lines') !== '0';
 
   let linesT = null;   // Transformation beim letzten vollständigen Zeichnen
 
@@ -412,7 +413,7 @@ export function initOverview(ctx) {
     centerOn([p.lat, p.lon], Math.max(zt.k, 2 ** 14), true);
   };
   document.querySelector('#ov-tiles').onclick = () => {
-    localStorage.setItem('ov-tiles', useTiles() ? '0' : '1');
+    ls.set('ov-tiles', useTiles() ? '0' : '1');
     render();
     ctx.toast(useTiles() ? 'Hintergrundkarte an (nur mit Internet)' : 'Hintergrundkarte aus');
   };
@@ -429,7 +430,7 @@ export function initOverview(ctx) {
     document.querySelectorAll('#layers-list select').forEach((s) => (s.onchange = () => setMode(s.dataset.id, s.value)));
     const cb = document.querySelector('#layers-lines');
     cb.checked = showLines();
-    cb.onchange = () => { localStorage.setItem('ov-lines', cb.checked ? '1' : '0'); render(); };
+    cb.onchange = () => { ls.set('ov-lines', cb.checked ? '1' : '0'); render(); };
     document.querySelector('#dlg-layers').showModal();
   };
   document.querySelector('#ov-layers').onclick = openLayers;

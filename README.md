@@ -94,6 +94,10 @@ Ein neuer Kollege ohne Karten setzt beim Teilen den Haken *Karten-PDFs mitschick
 
 Dateien ändern und in `sw.js` die Zeile `const VERSION = 'mk-…'` hochzählen. Dann holen sich die Handys beim nächsten Öffnen mit Netz die neue Version. Die Daten bleiben erhalten.
 
+## Mehrere Apps unter derselben Adresse
+
+Alle Apps unter `dersauerlaender.github.io` (z. B. auch OpenMixedRation) teilen sich den Browser-Speicher. Deshalb tragen alle Speichernamen von Mulchkarten ein eigenes Präfix: Datenbank `mulchkarten`, Einstellungen `mulchkarten:…`, Zwischenspeicher `mulchkarten-…`. Beim Aufräumen und Aktualisieren löscht die App nur eigene Zwischenspeicher und meldet nur ihren eigenen Service Worker ab.
+
 ## Technik
 
 Reines HTML/JS ohne Build-Schritt. Bibliotheken liegen in `vendor/`:
