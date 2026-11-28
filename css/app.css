@@ -252,7 +252,7 @@ body.ov-popup .ov-season { display: none; }
 
 /* Kompass: Nadel rot = Norden */
 .compass { display: flex; align-items: center; justify-content: center; }
-#t-north { top: 108px; }
+
 .needle { width: 12px; height: 34px; position: relative; display: block; transition: none; }
 .needle::before, .needle::after { content: ''; position: absolute; left: 0; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; }
 .needle::before { top: 0; border-bottom: 17px solid #dc2626; }
@@ -272,3 +272,10 @@ body.ov-popup .ov-season { display: none; }
 .btn-settings { position: relative; }
 body.not-installed .btn-settings::after { content: ''; position: absolute; top: 9px; right: 9px; width: 10px; height: 10px; border-radius: 50%;
   background: #ef4444; box-shadow: 0 0 0 2px var(--brand); }
+
+/* Knopf-Spalte der Kartenansicht & Zoom-Knöpfe */
+.map-fabs { position: absolute; right: 10px; top: 52px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.zoom-btns { display: flex; flex-direction: column; width: 48px; border-radius: 24px; background: #fff; box-shadow: 0 2px 8px #0003; overflow: hidden; }
+.zoom-btns button { height: 48px; border: 0; background: none; font-size: 1.5rem; font-weight: 600; color: var(--brand); }
+.zoom-btns button + button { border-top: 1px solid var(--line); }
+.zoom-btns button:active { background: #e8e5dd; }

@@ -6,7 +6,7 @@ import { initOverview } from './overview.js';
 import { oneFingerZoom, twoFinger } from './gestures.js';
 import { getBearing, setBearing, onBearing, rotPt, clientToLocal, animateBearing, updateCompass } from './rotation.js';
 
-export const APP_VERSION = '1.11.0';
+export const APP_VERSION = '1.12.0';
 const d3 = window.d3;
 const $ = (s) => document.querySelector(s);
 const KINDS = ['erledigt', 'offen', 'hinweis'];
@@ -594,6 +594,9 @@ function bindMap() {
   });
   onBearing(() => { if (S.map) applyRot(); });
   $('#t-north').onclick = () => animateBearing(0);
+  // Zoom-Knöpfe: um die Bildmitte (beim Mitführen bleibt die Position mittig)
+  $('#t-zin').onclick = () => gRot.transition().duration(250).call(S.zoom.scaleBy, 2, stageCenter());
+  $('#t-zout').onclick = () => gRot.transition().duration(250).call(S.zoom.scaleBy, 0.5, stageCenter());
 
   // Freihand zeichnen
   const node = svg.node();

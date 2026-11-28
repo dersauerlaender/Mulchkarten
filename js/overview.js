@@ -70,6 +70,8 @@ export function initOverview(ctx) {
   twoFinger(svg.node(), gRot, zoom, { getR: rot, setR: (r) => setBearing(-r), onEnd: () => renderLines() });
   onBearing(() => { if (document.querySelector('#view-overview').classList.contains('active')) render(); });
   document.querySelector('#ov-north').onclick = () => animateBearing(0);
+  document.querySelector('#ov-zin').onclick = () => gRot.transition().duration(250).call(zoom.scaleBy, 2, center());
+  document.querySelector('#ov-zout').onclick = () => gRot.transition().duration(250).call(zoom.scaleBy, 0.5, center());
 
   // Tippen: kurz warten, ob ein zweiter Tipp (Doppeltipp-Zoom) folgt
   svg.on('click', (ev) => {
