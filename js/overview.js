@@ -63,11 +63,33 @@ export function initOverview(ctx) {
 
   const zoom = d3.zoom()
     .scaleExtent([1, 2 ** 20])
-    .on('zoom', (ev) => { zt = ev.transform; render(true); })
-    .on('end', () => renderLines());   // Linien erst nach der Geste genau neu berechnen
+    .on('start', (ev) => { gest = { k0: zt.k, user: !!ev.sourceEvent, zoomed: false }; })
+    .on('zoom', (ev) => {
+      zt = ev.transform;
+      // Mitführen: Zoomen behält es bei, nur Verschieben mit dem Finger beendet es
+      if (ev.sourceEvent && follow && gest) {
+        gest.user = true;
+        if (Math.abs(ev.transform.k - gest.k0) > 1e-9) gest.zoomed = true;
+        else if (!gest.zoomed) setFollow(false);
+      }
+      render(true);
+    })
+    .on('end', () => {
+      renderLines();   // Linien erst nach der Geste genau neu berechnen
+      if (gest?.user && gest.zoomed && follow) centerOnPos(true);
+      gest = null;
+    });
+  let gest = null, follow = false;
+  function setFollow(on) { follow = on; document.querySelector('#ov-pos').classList.toggle('on', on); }
+  function centerOnPos(animate, k) {
+    const p = ctx.getPos();
+    if (!p) return false;
+    centerOn([p.lat, p.lon], k ?? zt.k, animate);
+    return true;
+  }
   gRot.call(zoom).on('dblclick.zoom', null);
   const ofz = oneFingerZoom(svg, zoom, { zoomSel: gRot });
-  twoFinger(svg.node(), gRot, zoom, { getR: rot, setR: (r) => setBearing(-r), onEnd: () => renderLines() });
+  twoFinger(svg.node(), gRot, zoom, { getR: rot, setR: (r) => setBearing(-r), onEnd: () => { renderLines(); if (follow) centerOnPos(true); } });
   onBearing(() => { if (document.querySelector('#view-overview').classList.contains('active')) render(); });
   document.querySelector('#ov-north').onclick = () => animateBearing(0);
   document.querySelector('#ov-zin').onclick = () => gRot.transition().duration(250).call(zoom.scaleBy, 2, center());
@@ -355,6 +377,7 @@ export function initOverview(ctx) {
     const dy = y > free - 45 || y < 45 ? free / 2 - y : 0;
     const dx = x < 30 || x > sr.width - 30 ? sr.width / 2 - x : 0;
     if (dx || dy) {
+      setFollow(false);
       const [lx, ly] = rotPt([dx, dy], -rot());
       gRot.transition().duration(300).call(zoom.translateBy, lx / zt.k, ly / zt.k);
     }
@@ -381,10 +404,11 @@ export function initOverview(ctx) {
     gPos.append('circle').attr('cx', x).attr('cy', y).attr('r', 9).attr('fill', '#2563eb').attr('stroke', '#fff').attr('stroke-width', 3);
   }
 
-  document.querySelector('#ov-fit').onclick = () => fitAll(true);
+  document.querySelector('#ov-fit').onclick = () => { setFollow(false); fitAll(true); };
   document.querySelector('#ov-pos').onclick = () => {
     const p = ctx.getPos();
     if (!p) { ctx.toast('Noch keine GPS-Position.'); return; }
+    setFollow(true);
     centerOn([p.lat, p.lon], Math.max(zt.k, 2 ** 14), true);
   };
   document.querySelector('#ov-tiles').onclick = () => {
@@ -425,7 +449,8 @@ export function initOverview(ctx) {
     },
     update(list) { if (list) maps = list; render(); },
     /** Auf einen Punkt zentrieren und so weit herauszoomen, dass ein Kartenrahmen ganz sichtbar ist */
-    focus(ll, footprint) {
+    focus(ll, footprint, followOn = false) {
+      setFollow(followOn);
       const { width: W, height: H } = size();
       const c = toWorld(ll);
       let k = 2 ** 17;
@@ -437,7 +462,9 @@ export function initOverview(ctx) {
       fitted = true;
       gRot.call(zoom.transform, d3.zoomIdentity.translate(W / 2 - c[0] * k, H / 2 - c[1] * k).scale(k));
     },
-    updatePos: renderPos,
+    /** neue GPS-Position: zeichnen und ggf. mitlaufen */
+    updatePos: () => { if (follow && !gest) centerOnPos(false); else renderPos(); },
+    isFollowing: () => follow,
     fitAll,
     addPoiHere: () => ctx.addPoiAtPos(),
   };

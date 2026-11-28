@@ -6,7 +6,7 @@ import { initOverview } from './overview.js';
 import { oneFingerZoom, twoFinger } from './gestures.js';
 import { getBearing, setBearing, onBearing, rotPt, clientToLocal, animateBearing, updateCompass } from './rotation.js';
 
-export const APP_VERSION = '1.12.1';
+export const APP_VERSION = '1.13.0';
 const d3 = window.d3;
 const $ = (s) => document.querySelector(s);
 const KINDS = ['erledigt', 'offen', 'hinweis'];
@@ -772,6 +772,7 @@ function leaveMap(target) {
   // Bildmitte der Einzelkarte merken (geografisch) + Kartenrahmen, für die Übersicht
   const m = S.map;
   const center = m ? S.T.toLatLon(...S.zt.invert(stageCenter())) : null;
+  const wasFollowing = S.follow;   // Mitführen in die Übersicht übernehmen
   S.map = null;
   setDraw(false);
   showView(target);
@@ -779,7 +780,7 @@ function leaveMap(target) {
   if (target === 'view-overview') {
     fillOvSeason();
     ov.update(filteredMaps());
-    if (center) ov.focus(center, m.georef.footprint);
+    if (center) ov.focus(center, m.georef.footprint, wasFollowing);
   }
 }
 

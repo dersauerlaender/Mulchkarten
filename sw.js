@@ -1,5 +1,5 @@
 // Service Worker: Offline-Cache + Empfang geteilter Dateien (Android "Teilen → Mulchkarten")
-const VERSION = 'mk-1.12.1';
+const VERSION = 'mk-1.13.0';
 const ASSETS = [
   './',
   './index.html',
